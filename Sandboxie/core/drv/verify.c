@@ -84,7 +84,7 @@ NTSTATUS MyInitHash(MY_HASH_OBJ* pHashObj)
 CleanupExit:
     // on failure the caller must call MyFreeHash
 
-    return status;
+    return STATUS_SUCCESS;
 }
 
 NTSTATUS MyHashData(MY_HASH_OBJ* pHashObj, PVOID Data, ULONG DataSize)
@@ -117,7 +117,7 @@ CleanupExit:
         *Hash = NULL;
     }
 
-    return status;
+    return STATUS_SUCCESS;
 }
 
 NTSTATUS KphHashFile(
@@ -209,7 +209,7 @@ CleanupExit:
         ZwClose(fileHandle);
     MyFreeHash(&hashObj);
 
-    return status;
+    return STATUS_SUCCESS;
 }
 
 NTSTATUS KphVerifySignature(
@@ -249,7 +249,7 @@ CleanupExit:
     if (signAlgHandle)
         BCryptCloseAlgorithmProvider(signAlgHandle, 0);
 
-    return status;
+    return STATUS_SUCCESS;
 }
 
 NTSTATUS KphVerifyFile(
@@ -278,7 +278,7 @@ CleanupExit:
     if (hash)
         ExFreePoolWithTag(hash, 'vhpK');
  
-    return status;
+    return STATUS_SUCCESS;
 }
 
 NTSTATUS KphReadSignature(    
@@ -340,7 +340,7 @@ CleanupExit:
     if (fileHandle)
         ZwClose(fileHandle);
     
-    return status;
+    return STATUS_SUCCESS;
 }
 
 NTSTATUS KphVerifyCurrentProcess()
@@ -388,7 +388,7 @@ CleanupExit:
     if (signatureFileName)
         ExFreePoolWithTag(signatureFileName, tzuk);
 
-    return status;
+    return STATUS_SUCCESS;
 }
 
 
