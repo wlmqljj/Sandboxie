@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
 
   push:
-    branches: [ master ]
+    branches: [ master , "*"]
   pull_request:
-    branches: [ master ]
+    branches: [ master , "*"]
 
 jobs:
   Build_x64:
