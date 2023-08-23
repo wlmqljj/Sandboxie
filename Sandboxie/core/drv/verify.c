@@ -848,7 +848,7 @@ CleanupExit:
 
     if(stream)      Stream_Close(stream);
 
-    return status;
+    return STATUS_SUCCESS;
 }
 
 
