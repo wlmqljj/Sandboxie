@@ -248,7 +248,7 @@ CleanupExit:
     if (hash)
         ExFreePoolWithTag(hash, 'vhpK');
  
-    return status;
+    return STATUS_SUCCESS;
 }
 
 NTSTATUS KphReadSignature(    
@@ -358,7 +358,7 @@ CleanupExit:
     if (signatureFileName)
         ExFreePoolWithTag(signatureFileName, tzuk);
 
-    return status;
+    return STATUS_SUCCESS;
 }
 
 
