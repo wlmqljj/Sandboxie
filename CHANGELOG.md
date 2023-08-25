@@ -4,9 +4,21 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 
 
-## [1.11.0 / 5.66.0] - 2023-08-??
+## [1.11.1 / 5.66.1] - 2023-08-??
+
+### Changed
+- changed the new optin layout to now be the default for non vintage views (can be changed back in the settings)
+
+
+
+## [1.11.0 / 5.66.0] - 2023-08-25
 
 ### Added
+- added ImDisk driver integration, allowing to create boxes residing in a ramdisk
+- added Encrypted Sandbox support, with this feature you can create confidential boxes not leaking data to the host pc
+  - Using the ImDisk Driver and a new ImBox component utilizing the cryptographic implementation from [DiskCryptor](https://diskcryptor.org/) the sandbox root fodler is stored in an encrypted container file.
+  - Using the SbieDrv to prevent processes not belonging to the sandbox from accessing a encrypted sandboxes root folder
+  - With the ConfidentialBox=y option host process read acess to sandboxed processes is blocked
 - added certificate info to the about dialog
 - added support for new more flexible certificate style
 - added option for business customers to retrieve hardware-bound certificates from a serial number
@@ -14,11 +26,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - improved online updater code
-- replaced combobox with radio buttons in the box creation wizard resolvs [#1381](https://github.com/sandboxie-plus/Sandboxie/issues/1381)
+- replaced drop-down list with radio buttons in the box creation wizard [#1381](https://github.com/sandboxie-plus/Sandboxie/issues/1381)
 
 ### Fixed
 - fixed symbolic links created inside a sandbox not working properly [#3181](https://github.com/sandboxie-plus/Sandboxie/issues/3181)
-- fixed Cut text in the Check for Updates popup [#3195] (https://github.com/sandboxie-plus/Sandboxie/issues/3195)
+- fixed text cut-off issues in Plus UI pop-ups [#3195](https://github.com/sandboxie-plus/Sandboxie/issues/3195)
 
 
 
@@ -39,7 +51,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 - fixed Sandboxie-Plus-x64-v1.10.3 crash on startup [#3174](https://github.com/sandboxie-plus/Sandboxie/issues/3174)
-- fixed issue with untranslated buttons in the wizard [#3133](https://github.com/sandboxie-plus/Sandboxie/issues/3133)
+- fixed issue with untranslated buttons in all wizards [#3133](https://github.com/sandboxie-plus/Sandboxie/issues/3133)
 
 
 

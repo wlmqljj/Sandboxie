@@ -36,6 +36,7 @@
 #include "Helpers/FullScreen.h"
 #include "Helpers/WinHelper.h"
 #include "../QSbieAPI/Helpers/DbgHelper.h"
+#include "Windows/BoxImageWindow.h"
 #include "Wizards/BoxAssistant.h"
 #include "Engine/BoxEngine.h"
 #include "Engine/ScriptManager.h"
@@ -172,6 +173,8 @@ CSandMan::CSandMan(QWidget *parent)
 
 	m_bExit = false;
 
+	m_ImDiskReady = true;
+
 	theAPI = new CSbiePlusAPI(this);
 	connect(theAPI, SIGNAL(StatusChanged()), this, SLOT(OnStatusChanged()));
 
@@ -194,14 +197,14 @@ CSandMan::CSandMan(QWidget *parent)
 
 	m_SbieTemplates = new CSbieTemplatesEx(theAPI, this);
 
-	m_SbieScripts = new CScriptManager(this);
-
 
 	m_bConnectPending = false;
 	m_bStopPending = false;
 
 
 	m_pUpdater = new COnlineUpdater(this);
+
+	m_SbieScripts = new CScriptManager(this);
 
 	m_AddonManager = new CAddonManager(this);
 
@@ -227,6 +230,7 @@ CSandMan::CSandMan(QWidget *parent)
 	m_pDisabledForce = new QLabel();
 	m_pDisabledRecovery = new QLabel();
 	m_pDisabledMessages = new QLabel();
+	m_pRamDiskInfo = NULL;
 	statusBar()->addPermanentWidget(m_pTraceInfo);
 	statusBar()->addPermanentWidget(m_pDisabledForce);
 	statusBar()->addPermanentWidget(m_pDisabledRecovery);
@@ -239,11 +243,6 @@ CSandMan::CSandMan(QWidget *parent)
 	connect(m_pHotkeyManager, SIGNAL(activated(size_t)), SLOT(OnHotKey(size_t)));
 	SetupHotKeys();
 
-	//for (int i = 0; i < eMaxColor; i++) {
-	//	m_BoxIcons[i].Empty = QIcon(QString(":/Boxes/Empty%1").arg(i));
-	//	m_BoxIcons[i].InUse = QIcon(QString(":/Boxes/Full%1").arg(i));
-	//}
-
 	m_BoxColors[CSandBoxPlus::eHardenedPlus] = qRgb(238,35,4);
 	m_BoxColors[CSandBoxPlus::eHardened] = qRgb(247,125,2);
 	m_BoxColors[CSandBoxPlus::eDefaultPlus] = qRgb(1,133,248);
@@ -252,6 +251,7 @@ CSandMan::CSandMan(QWidget *parent)
 	m_BoxColors[CSandBoxPlus::eAppBox] = qRgb(0,253,0);
 	m_BoxColors[CSandBoxPlus::eInsecure] = qRgb(244,3,244);
 	m_BoxColors[CSandBoxPlus::eOpen] = qRgb(255,255,255);
+	m_BoxColors[CSandBoxPlus::ePrivate] = qRgb(56,56,56);
 
 	CreateTrayIcon();
 
@@ -441,6 +441,21 @@ void CSandMan::CreateMaintenanceMenu()
 				m_pStartSvc = m_pMaintenanceItems->addAction(tr("Start Service"), this, SLOT(OnMaintenance()));
 				m_pStopSvc = m_pMaintenanceItems->addAction(tr("Stop Service"), this, SLOT(OnMaintenance()));
 				m_pUninstallSvc = m_pMaintenanceItems->addAction(tr("Uninstall Service"), this, SLOT(OnMaintenance()));
+
+			QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+			QString ImDiskCpl = env.value("SystemRoot") + "\\system32\\imdisk.cpl";
+			if (QFile::exists(ImDiskCpl)) {
+				m_pImDiskCpl = m_pMaintenance->addAction(LoadWindowsIcon(ImDiskCpl, 0), tr("Virtual Disks"), this, [ImDiskCpl]() {
+					std::wstring imDiskCpl = ImDiskCpl.toStdWString();
+					SHELLEXECUTEINFO si = { 0 };
+					si.cbSize = sizeof(SHELLEXECUTEINFO);
+					si.lpVerb = L"runas";
+					si.lpFile = imDiskCpl.c_str();
+					si.nShow = SW_SHOW;
+					ShellExecuteEx(&si);
+				});
+			}
+
 			m_pMaintenance->addSeparator();
 			m_pSetupWizard = m_pMaintenance->addAction(CSandMan::GetIcon("Wizard"), tr("Setup Wizard"), this, SLOT(OnMaintenance()));
 			//m_pUpdateCore = m_pMaintenance->addAction(CSandMan::GetIcon("Install"), tr("Update Core Files"), this, SLOT(OnMaintenance()));
@@ -493,6 +508,7 @@ void CSandMan::CreateMenus(bool bAdvanced)
 		m_pMenuFile->addSeparator();
 		m_pRunBoxed = m_pMenuFile->addAction(CSandMan::GetIcon("Run"), tr("Run Sandboxed"), this, SLOT(OnSandBoxAction()));
 		m_pEmptyAll = m_pMenuFile->addAction(CSandMan::GetIcon("EmptyAll"), tr("Terminate All Processes"), this, SLOT(OnEmptyAll()));
+		m_pLockAll = m_pMenuFile->addAction(CSandMan::GetIcon("LockClosed"), tr("Lock All Encrypted Boxes"), this, SLOT(OnLockAll()));
 		m_pMenuFile->addSeparator();
 		m_pWndFinder = m_pMenuFile->addAction(CSandMan::GetIcon("finder"), tr("Is Window Sandboxed?"), this, SLOT(OnWndFinder()));
 
@@ -634,6 +650,7 @@ void CSandMan::CreateOldMenus()
 	m_pMenuFile = m_pMenuBar->addMenu(tr("&File"));
 		m_pRunBoxed = m_pMenuFile->addAction(CSandMan::GetIcon("Run"), tr("Run Sandboxed"), this, SLOT(OnSandBoxAction()));
 		m_pEmptyAll = m_pMenuFile->addAction(CSandMan::GetIcon("EmptyAll"), tr("Terminate All Processes"), this, SLOT(OnEmptyAll()));
+		m_pLockAll = m_pMenuFile->addAction(CSandMan::GetIcon("LockClosed"), tr("Lock All Encrypted Boxes"), this, SLOT(OnLockAll()));
 		m_pDisableForce = m_pMenuFile->addAction(CSandMan::GetIcon("PauseForce"), tr("Pause Forcing Programs"), this, SLOT(OnDisableForce()));
 		m_pDisableForce->setCheckable(true);
 		m_pDisableForce2 = new QAction(CSandMan::GetIcon("PauseForce"), tr("Pause Forcing Programs"));
@@ -810,6 +827,7 @@ QList<ToolBarAction> CSandMan::GetAvailableToolBarActions()
 			ToolBarAction{ "RunBoxed", m_pRunBoxed },
 			ToolBarAction{ "IsBoxed", m_pWndFinder },
 			ToolBarAction{ "TerminateAll", m_pEmptyAll },
+			ToolBarAction{ "LockAll", m_pLockAll },
 			ToolBarAction{ "", nullptr },        // separator
 			ToolBarAction{ "CleanUpMenu", nullptr, tr("Cleanup") }, //tr: Name of button in toolbar for cleanup-all action
 			ToolBarAction{ "KeepTerminated", m_pKeepTerminated },
@@ -1345,28 +1363,11 @@ void CSandMan::commitData(QSessionManager& manager)
 	theConf->Sync();
 }
 
-QIcon CSandMan::GetBoxIcon(int boxType, bool inUse)// , int iBusy)
+QIcon CSandMan::GetBoxIcon(int boxType, bool inUse)
 {
-	//EBoxColors color = eYellow;
 	int iViewMode = theConf->GetInt("Options/ViewMode", 1);
-	if (iViewMode != 2) {
+	if (iViewMode != 2)
 		return GetColorIcon(m_BoxColors[boxType], inUse);
-		/*switch (boxType) {
-		case CSandBoxPlus::eHardenedPlus:		color = eRed; break;
-		case CSandBoxPlus::eHardened:			color = eOrang; break;
-		case CSandBoxPlus::eDefaultPlus:		color = eBlue; break;
-		case CSandBoxPlus::eDefault:			color = eYellow; break;
-		case CSandBoxPlus::eAppBoxPlus:			color = eCyan; break;
-		case CSandBoxPlus::eAppBox:				color = eGreen; break;
-		case CSandBoxPlus::eInsecure:			color = eMagenta; break;
-		case CSandBoxPlus::eOpen:				color = eWhite; break;
-		}*/
-	}
-	//if (inBusy)
-	//	return m_BoxIcons[color].Busy;
-	/*if (inUse)
-		return m_BoxIcons[color].InUse;
-	return m_BoxIcons[color].Empty;*/
 	return GetColorIcon(m_BoxColors[CSandBoxPlus::eDefault], inUse);
 }
 
@@ -1379,6 +1380,10 @@ QIcon CSandMan::GetColorIcon(QColor boxColor, bool inUse/*, bool bOut*/)
 	static QPixmap Frame;
 	if(Frame.isNull())
 		Frame = QPixmap(":/Boxes/Frame");
+
+	static QPixmap FrameDM;
+	if(FrameDM.isNull())
+		FrameDM = QPixmap(":/Boxes/FrameDM");
 
 	static QPixmap Items;
 	if(Items.isNull())
@@ -1408,7 +1413,10 @@ QIcon CSandMan::GetColorIcon(QColor boxColor, bool inUse/*, bool bOut*/)
 	//	painter.drawPixmap(0, 0, QPixmap::fromImage(MyOut));
 	//}
 	painter.drawPixmap(0, 0, QPixmap::fromImage(MySand));
-	painter.drawPixmap(0, 0, Frame);
+	if (m_DarkTheme)
+		painter.drawPixmap(0, 0, FrameDM);
+	else
+		painter.drawPixmap(0, 0, Frame);
 	if (inUse) 
 	{	
 		//rgb = change_hsv_c(rgb, -60, 2, 1); // yellow -> red
@@ -1416,13 +1424,18 @@ QIcon CSandMan::GetColorIcon(QColor boxColor, bool inUse/*, bool bOut*/)
 		my_rgb rgb1 = { (double)qRed(rgb), (double)qGreen(rgb), (double)qBlue(rgb) };
 		my_hsv hsv = rgb2hsv(rgb1);
 
-		if((hsv.h >= 30 && hsv.h < 150) || (hsv.h >= 210 && hsv.h < 330))		hsv.h -= 60;
-		else if(hsv.h >= 150 && hsv.h < 210)									hsv.h += 120;
-		else if((hsv.h >= 330 && hsv.h < 360) || (hsv.h >= 0 && hsv.h < 30))	hsv.h -= 240;
+		if (hsv.s > 0) {
+			if ((hsv.h >= 30 && hsv.h < 150) || (hsv.h >= 210 && hsv.h < 330))		hsv.h -= 60;
+			else if (hsv.h >= 150 && hsv.h < 210)									hsv.h += 120;
+			else if ((hsv.h >= 330 && hsv.h < 360) || (hsv.h >= 0 && hsv.h < 30))	hsv.h -= 240;
+		}
 
 		if (hsv.h < 0) hsv.h += 360;
 		else if (hsv.h >= 360) hsv.h -= 360;
-		hsv.s = 1; // make the content always fully saturated
+		if(hsv.v < 64)
+			hsv.v = 255;
+		else
+			hsv.s = 1; // make the content always fully saturated
 
 		my_rgb rgb2 = hsv2rgb(hsv);
 		rgb = qRgb(rgb2.r, rgb2.g, rgb2.b);
@@ -1486,6 +1499,9 @@ QString CSandMan::GetBoxDescription(int boxType)
 	case CSandBoxPlus::eAppBoxPlus:
 	case CSandBoxPlus::eAppBox:
 		Info = tr("This box does not enforce isolation, it is intended to be used as an <a href=\"sbie://docs/compartment-mode\">application compartment</a> for software virtualization only.");
+		break;
+	case CSandBoxPlus::ePrivate:
+		Info = tr("This box will be <a href=\"sbie://docs/boxencryption\">encrypted</a> and <a href=\"sbie://docs/black-box\">access to sandboxed processes will be guarded</a>.");
 		break;
 	}
 	
@@ -1620,8 +1636,30 @@ bool CSandMan::RunSandboxed(const QStringList& Commands, QString BoxName, const 
 SB_RESULT(quint32) CSandMan::RunStart(const QString& BoxName, const QString& Command, bool Elevated, const QString& WorkingDir, QProcess* pProcess)
 {
 	auto pBoxEx = theAPI->GetBoxByName(BoxName).objectCast<CSandBoxPlus>();
+	if (pBoxEx && pBoxEx->UseImageFile() && pBoxEx->GetMountRoot().isEmpty()){
+		
+		SB_STATUS Status = ImBoxMount(pBoxEx, true);
+		if (Status.IsError())
+			return Status;
+	}
 
 	return theAPI->RunStart(BoxName, Command, Elevated, WorkingDir, pProcess);
+}
+
+SB_STATUS CSandMan::ImBoxMount(const CSandBoxPtr& pBox, bool bAutoUnmount)
+{
+	auto pBoxEx = pBox.objectCast<CSandBoxPlus>();
+	if (!QFile::exists(pBoxEx->GetBoxImagePath())) {
+		CBoxImageWindow window(CBoxImageWindow::eNew, this);
+		if (theGUI->SafeExec(&window) != 1)
+			return SB_ERR(SB_Canceled);
+		pBoxEx->ImBoxCreate(window.GetImageSize() / 1024, window.GetPassword());
+	}
+
+	CBoxImageWindow window(CBoxImageWindow::eMount, this);
+	if (theGUI->SafeExec(&window) != 1)
+		return SB_ERR(SB_Canceled);
+	return pBox->ImBoxMount(window.GetPassword(), window.UseProtection(), bAutoUnmount);
 }
 
 void CSandMan::dropEvent(QDropEvent* e)
@@ -1681,6 +1719,21 @@ void CSandMan::timerEvent(QTimerEvent* pEvent)
 		}
 		else 
 			ActiveProcesses = Processes.count();
+
+
+		SB_RESULT(QVariantMap) ImBox = theAPI->ImBoxQuery();
+		m_ImDiskReady = ImBox.GetStatus() != ERROR_DEVICE_NOT_AVAILABLE;
+		if (!ImBox.IsError()) {
+			if (!m_pRamDiskInfo) {
+				m_pRamDiskInfo = new QLabel();
+				statusBar()->addPermanentWidget(m_pRamDiskInfo);
+			}
+			m_pRamDiskInfo->setText(FormatSize(ImBox.GetValue().value("UsedSize").toULongLong()) + "/" + FormatSize(ImBox.GetValue().value("DiskSize").toULongLong()));
+		}
+		else if (m_pRamDiskInfo) {
+			m_pRamDiskInfo->deleteLater();
+			m_pRamDiskInfo = NULL;
+		}
 
 
 		if (theAPI->IsBusy() || m_iDeletingContent > 0)
@@ -1806,6 +1859,21 @@ SB_STATUS CSandMan::DeleteBoxContent(const CSandBoxPtr& pBox, EDelMode Mode, boo
 	}
 
 	auto pBoxEx = pBox.objectCast<CSandBoxPlus>();
+
+	if (pBoxEx->UseImageFile()) {
+		if (pBoxEx->GetMountRoot().isEmpty()) {
+			if (Mode != eForDelete)
+				return CSbieStatus(SB_DeleteNoMount);
+
+			if(QFile::exists(pBoxEx->GetBoxImagePath()) && !QFile::remove(pBoxEx->GetBoxImagePath()))
+				return SB_ERR(SB_DeleteFailed, QVariantList() << pBoxEx->GetName() << pBoxEx->GetBoxImagePath());
+
+			if(QDir().exists(pBoxEx->GetFileRoot()) && !QDir().rmdir(pBoxEx->GetFileRoot()))
+				return SB_ERR(SB_DeleteFailed, QVariantList() << pBoxEx->GetName() << pBoxEx->GetFileRoot());
+
+			return Ret;
+		}
+	}
 
 	if (Mode != eForDelete) {
 		
@@ -2289,6 +2357,7 @@ void CSandMan::UpdateState()
 	m_pNewGroup->setEnabled(isConnected);
 	m_pImportBox->setEnabled(isConnected);
 	m_pEmptyAll->setEnabled(isConnected);
+	m_pLockAll->setEnabled(isConnected);
 	m_pDisableForce->setEnabled(isConnected);
 	m_pDisableForce2->setEnabled(isConnected);
 
@@ -2494,19 +2563,40 @@ void CSandMan::OnLogSbieMessage(quint32 MsgCode, const QStringList& MsgData, qui
 			m_MissingTemplates.append(MsgData[2]);
 	}
 
-	if ((MsgCode & 0xFFFF) == 6004) // certificate error
+	if ((MsgCode & 0xFFFF) == 6004 || (MsgCode & 0xFFFF) == 6008 || (MsgCode & 0xFFFF) == 6009) // certificate error
 	{
-		static quint64 iLastCertWarning = 0;
-		if (iLastCertWarning + 60 < QDateTime::currentDateTime().toSecsSinceEpoch()) { // reset after 60 seconds
-			iLastCertWarning = QDateTime::currentDateTime().toSecsSinceEpoch();
-			
-			QString Message;
-			if (!MsgData[2].isEmpty())
-				Message = tr("The program %1 started in box %2 will be terminated in 5 minutes because the box was configured to use features exclusively available to project supporters.").arg(MsgData[2]).arg(MsgData[1]);
-			else 
-				Message = tr("The box %1 is configured to use features exclusively available to project supporters, these presets will be ignored.").arg(MsgData[1]);
+		QString Message;
+		if ((MsgCode & 0xFFFF) == 6008)
+		{
+			Message = tr("The box %1 is configured to use features exclusively available to project supporters.").arg(MsgData[1]);
 			Message.append(tr("<br /><a href=\"https://sandboxie-plus.com/go.php?to=sbie-get-cert\">Become a project supporter</a>, and receive a <a href=\"https://sandboxie-plus.com/go.php?to=sbie-cert\">supporter certificate</a>"));
+		}
+		else if ((MsgCode & 0xFFFF) == 6009)
+		{
+			Message = tr("The box %1 is configured to use features which require an <b>advanced</b> supporter certificate.").arg(MsgData[1]);
+			if(g_CertInfo.active)
+				Message.append(tr("<br /><a href=\"https://sandboxie-plus.com/go.php?to=sbie-upgrade-cert\">Upgrade your Certificate</a> to unlock advanced features."));
+			else
+				Message.append(tr("<br /><a href=\"https://sandboxie-plus.com/go.php?to=sbie-get-cert\">Become a project supporter</a>, and receive a <a href=\"https://sandboxie-plus.com/go.php?to=sbie-cert\">supporter certificate</a>"));
+		}
+		else 
+		{
+			static quint64 iLastCertWarning = 0;
+			if (iLastCertWarning + 60 < QDateTime::currentDateTime().toSecsSinceEpoch()) { // reset after 60 seconds
+				iLastCertWarning = QDateTime::currentDateTime().toSecsSinceEpoch();
 
+				if (!MsgData[2].isEmpty())
+					Message = tr("The program %1 started in box %2 will be terminated in 5 minutes because the box was configured to use features exclusively available to project supporters.").arg(MsgData[2]).arg(MsgData[1]);
+				else
+					Message = tr("The box %1 is configured to use features exclusively available to project supporters, these presets will be ignored.").arg(MsgData[1]);
+				Message.append(tr("<br /><a href=\"https://sandboxie-plus.com/go.php?to=sbie-get-cert\">Become a project supporter</a>, and receive a <a href=\"https://sandboxie-plus.com/go.php?to=sbie-cert\">supporter certificate</a>"));
+
+				//bCertWarning = false;
+			}
+		}
+
+		if (!Message.isEmpty())
+		{
 			QMessageBox msgBox(this);
 			msgBox.setTextFormat(Qt::RichText);
 			msgBox.setIcon(QMessageBox::Critical);
@@ -2518,8 +2608,6 @@ void CSandMan::OnLogSbieMessage(quint32 MsgCode, const QStringList& MsgData, qui
 			if (msgBox.exec() == QDialogButtonBox::Yes) {
 				OpenUrl(QUrl("https://sandboxie-plus.com/go.php?to=sbie-get-cert"));
 			}*/
-			
-			//bCertWarning = false;
 		}
 		// return;
 	}
@@ -2558,22 +2646,34 @@ void CSandMan::SaveMessageLog(QIODevice* pFile)
 		pFile->write((Msg.TimeStamp.toString("hh:mm:ss.zzz")  + "\t" + FormatSbieMessage(Msg.MsgCode, Msg.MsgData, Msg.ProcessName)).toLatin1() + "\n");
 }
 
-bool CSandMan::CheckCertificate(QWidget* pWidget) 
+bool CSandMan::CheckCertificate(QWidget* pWidget, bool bAdvanced) 
 {
-	if (g_CertInfo.active)
-		return true;
+	QString Message;
+	if (bAdvanced)
+	{
+		if (CERT_IS_LEVEL(g_CertInfo, eCertAdvanced))
+			return true;
 
-	//if ((g_FeatureFlags & CSbieAPI::eSbieFeatureCert) == 0) {
-	//	OnLogMessage(tr("The supporter certificate is expired"));
-	//	return false;
-	//}
+		Message = tr("The selected feature requires an <b>advanced</b> supporter certificate.");
+		if(g_CertInfo.active)
+			Message.append(tr("<br /><a href=\"https://sandboxie-plus.com/go.php?to=sbie-upgrade-cert\">Upgrade your Certificate</a> to unlock advanced features."));
+		else
+			Message.append(tr("<br /><a href=\"https://sandboxie-plus.com/go.php?to=sbie-get-cert\">Become a project supporter</a>, and receive a <a href=\"https://sandboxie-plus.com/go.php?to=sbie-cert\">supporter certificate</a>"));
+	}
+	else
+	{
+		if (g_CertInfo.active)
+			return true;
+
+		Message = tr("The selected feature set is only available to project supporters. Processes started in a box with this feature set enabled without a supporter certificate will be terminated after 5 minutes.<br />"
+			"<a href=\"https://sandboxie-plus.com/go.php?to=sbie-get-cert\">Become a project supporter</a>, and receive a <a href=\"https://sandboxie-plus.com/go.php?to=sbie-cert\">supporter certificate</a>");
+	}
 
 	QMessageBox msgBox(pWidget);
 	msgBox.setTextFormat(Qt::RichText);
 	msgBox.setIcon(QMessageBox::Information);
 	msgBox.setWindowTitle("Sandboxie-Plus");
-	msgBox.setText(tr("The selected feature set is only available to project supporters. Processes started in a box with this feature set enabled without a supporter certificate will be terminated after 5 minutes.<br />"
-		"<a href=\"https://sandboxie-plus.com/go.php?to=sbie-get-cert\">Become a project supporter</a>, and receive a <a href=\"https://sandboxie-plus.com/go.php?to=sbie-cert\">supporter certificate</a>"));
+	msgBox.setText(Message);
 	msgBox.setStandardButtons(QMessageBox::Ok);
 	msgBox.exec();
 	/*msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
@@ -2768,7 +2868,7 @@ void CSandMan::OnSandBoxAction()
 		RunSandboxed(QStringList() << "run_dialog");
 }
 
-void CSandMan::OnEmptyAll()
+void CSandMan::TerminateAll(bool bUnmount)
 {
  	if (theConf->GetInt("Options/WarnTerminateAll", -1) == -1)
 	{
@@ -2782,6 +2882,14 @@ void CSandMan::OnEmptyAll()
 	}
 
 	theAPI->TerminateAll();
+
+	if (bUnmount) {
+		QMap<QString, CSandBoxPtr> Boxes = theAPI->GetAllBoxes();
+		foreach(const CSandBoxPtr & pBox, Boxes) {
+			if (!pBox->GetMountRoot().isEmpty())
+				pBox->ImBoxUnmount();
+		}
+	}
 }
 
 void CSandMan::OnDisableForce()
@@ -3189,6 +3297,7 @@ void CSandMan::OnResetMsgs()
 	if (Ret == QMessageBox::Yes)
 	{
 		theConf->DelValue("Options/WarnDeleteV2");
+		theConf->DelValue("Options/WarnBoxCrypto");
 
 		theConf->DelValue("Options/PortableStop");
 		theConf->DelValue("Options/PortableStart");
