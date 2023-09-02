@@ -4,6 +4,25 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 
 
+
+## [1.11.2 / 5.66.2] - 2023-08-
+
+### Added
+- added update warning when updating with an expired personal certificate
+- added an option to terminate the UI by clicking close button [#3253](https://github.com/sandboxie-plus/Sandboxie/issues/3253)
+- added an option to restore Sandboxie that is minimized to the System Tray with a single click [#3251](https://github.com/sandboxie-plus/Sandboxie/issues/3251)
+- added an option to minimize Sandboxie to the System Tray by clicking minimize button [3252](https://github.com/sandboxie-plus/Sandboxie/issues/3252)
+- added an independent desktop integration setting [#3246](https://github.com/sandboxie-plus/Sandboxie/issues/3246)
+
+### Changed
+- moved tray option to an own tab
+- repalced some graphics with better compressed once (thanks idealths)
+
+### Fixed
+- fixed subscription certificate recognition issue
+- fixed Side logo cut-off in the About window [#3249](https://github.com/sandboxie-plus/Sandboxie/issues/3249)
+
+
 ## [1.11.1 / 5.66.1] - 2023-08-31
 
 ### Added

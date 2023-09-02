@@ -134,7 +134,8 @@ CSettingsWindow::CSettingsWindow(QWidget* parent)
 
 	ui.tabsShell->setCurrentIndex(0);
 	ui.tabsShell->setTabIcon(0, CSandMan::GetIcon("Windows"));
-	ui.tabsShell->setTabIcon(1, CSandMan::GetIcon("Run"));
+	ui.tabsShell->setTabIcon(1, CSandMan::GetIcon("TaskBar"));
+	ui.tabsShell->setTabIcon(2, CSandMan::GetIcon("Run"));
 
 	ui.tabsGUI->setCurrentIndex(0);
 	ui.tabsGUI->setTabIcon(0, CSandMan::GetIcon("Interface"));
@@ -226,6 +227,10 @@ CSettingsWindow::CSettingsWindow(QWidget* parent)
 	ui.cmbIntegrateMenu->addItem(tr("As sub group"));
 	ui.cmbIntegrateMenu->addItem(tr("Fully integrate"));
 
+	ui.cmbIntegrateDesk->addItem(tr("Don't integrate links"));
+	ui.cmbIntegrateDesk->addItem(tr("As sub group"));
+	ui.cmbIntegrateDesk->addItem(tr("Fully integrate"));
+
 	ui.cmbSysTray->addItem(tr("Don't show any icon"));
 	ui.cmbSysTray->addItem(tr("Show Plus icon"));
 	ui.cmbSysTray->addItem(tr("Show Classic icon"));
@@ -233,6 +238,10 @@ CSettingsWindow::CSettingsWindow(QWidget* parent)
 	ui.cmbTrayBoxes->addItem(tr("All Boxes"));
 	ui.cmbTrayBoxes->addItem(tr("Active + Pinned"));
 	ui.cmbTrayBoxes->addItem(tr("Pinned Only"));
+
+	ui.cmbOnClose->addItem(tr("Close to Tray"), "ToTray");
+	ui.cmbOnClose->addItem(tr("Prompt before Close"), "Prompt");
+	ui.cmbOnClose->addItem(tr("Close"), "Close");
 
 	ui.cmbDPI->addItem(tr("None"), 0);
 	ui.cmbDPI->addItem(tr("Native"), 1);
@@ -309,13 +318,17 @@ CSettingsWindow::CSettingsWindow(QWidget* parent)
 	connect(ui.chkAlwaysDefault, SIGNAL(stateChanged(int)), this, SLOT(OnOptChanged()));
 	connect(ui.chkShellMenu2, SIGNAL(stateChanged(int)), this, SLOT(OnOptChanged()));
 	
-	connect(ui.chkScanMenu, SIGNAL(stateChanged(int)), this, SLOT(OnChangeGUI()));
-	connect(ui.cmbIntegrateMenu, SIGNAL(currentIndexChanged(int)), this, SLOT(OnChangeGUI()));
+	connect(ui.chkScanMenu, SIGNAL(stateChanged(int)), this, SLOT(OnOptChanged()));
+	connect(ui.cmbIntegrateMenu, SIGNAL(currentIndexChanged(int)), this, SLOT(OnOptChanged()));
+	connect(ui.cmbIntegrateDesk, SIGNAL(currentIndexChanged(int)), this, SLOT(OnOptChanged()));
 	
 	connect(ui.cmbSysTray, SIGNAL(currentIndexChanged(int)), this, SLOT(OnOptChanged()));
 	connect(ui.cmbTrayBoxes, SIGNAL(currentIndexChanged(int)), this, SLOT(OnOptChanged()));
 	connect(ui.chkCompactTray, SIGNAL(stateChanged(int)), this, SLOT(OnChangeGUI()));
+	connect(ui.cmbOnClose, SIGNAL(currentIndexChanged(int)), this, SLOT(OnOptChanged()));
 	connect(ui.chkBoxOpsNotify, SIGNAL(stateChanged(int)), this, SLOT(OnOptChanged()));
+	connect(ui.chkMinimize, SIGNAL(stateChanged(int)), this, SLOT(OnOptChanged()));
+	connect(ui.chkSingleShow, SIGNAL(stateChanged(int)), this, SLOT(OnOptChanged()));
 	//
 
 	// Interface Config
@@ -894,11 +907,15 @@ void CSettingsWindow::LoadSettings()
 
 	ui.chkScanMenu->setChecked(theConf->GetBool("Options/ScanStartMenu", true));
 	ui.cmbIntegrateMenu->setCurrentIndex(theConf->GetInt("Options/IntegrateStartMenu", 0));
+	ui.cmbIntegrateDesk->setCurrentIndex(theConf->GetInt("Options/IntegrateDesktop", 0));
 	
 	ui.cmbSysTray->setCurrentIndex(theConf->GetInt("Options/SysTrayIcon", 1));
 	ui.cmbTrayBoxes->setCurrentIndex(theConf->GetInt("Options/SysTrayFilter", 0));
 	ui.chkCompactTray->setChecked(theConf->GetBool("Options/CompactTray", false));
 	ui.chkBoxOpsNotify->setChecked(theConf->GetBool("Options/AutoBoxOpsNotify", false));
+	ui.cmbOnClose->setCurrentIndex(ui.cmbOnClose->findData(theConf->GetString("Options/OnClose", "ToTray")));
+	ui.chkMinimize->setChecked(theConf->GetBool("Options/MinimizeToTray", false));
+	ui.chkSingleShow->setChecked(theConf->GetBool("Options/TraySingleClick", false));
 
 	OnLoadAddon();
 
@@ -1399,17 +1416,20 @@ void CSettingsWindow::SaveSettings()
 	theConf->SetValue("Options/ScanStartMenu", ui.chkScanMenu->isChecked());
 	int OldIntegrateStartMenu = theConf->GetInt("Options/IntegrateStartMenu", 0);
 	theConf->SetValue("Options/IntegrateStartMenu", ui.cmbIntegrateMenu->currentIndex());
-	if (ui.cmbIntegrateMenu->currentIndex() != OldIntegrateStartMenu) {
-		if (ui.cmbIntegrateMenu->currentIndex() == 0)
-			theGUI->ClearStartMenu();
-		else
-			theGUI->SyncStartMenu();
+	int OldIntegrateDesktop = theConf->GetInt("Options/IntegrateDesktop", 0);
+	theConf->SetValue("Options/IntegrateDesktop", ui.cmbIntegrateDesk->currentIndex());
+	if (ui.cmbIntegrateDesk->currentIndex() != OldIntegrateDesktop || ui.cmbIntegrateMenu->currentIndex() != OldIntegrateStartMenu) {
+		theGUI->ClearStartMenu();
+		theGUI->SyncStartMenu();
 	}
 
 	theConf->SetValue("Options/SysTrayIcon", ui.cmbSysTray->currentIndex());
 	theConf->SetValue("Options/SysTrayFilter", ui.cmbTrayBoxes->currentIndex());
 	theConf->SetValue("Options/CompactTray", ui.chkCompactTray->isChecked());
 	theConf->SetValue("Options/AutoBoxOpsNotify", ui.chkBoxOpsNotify->isChecked());
+	theConf->SetValue("Options/OnClose", ui.cmbOnClose->currentData());
+	theConf->SetValue("Options/MinimizeToTray", ui.chkMinimize->isChecked());
+	theConf->SetValue("Options/TraySingleClick", ui.chkSingleShow->isChecked());
 
 	if (theAPI->IsConnected())
 	{
@@ -1676,6 +1696,10 @@ void CSettingsWindow::reject()
 
 void CSettingsWindow::OnOptChanged()
 {
+	QStandardItemModel *model = qobject_cast<QStandardItemModel *>(ui.cmbOnClose->model());
+	QStandardItem *item = model->item(0);
+	item->setFlags((ui.cmbSysTray->currentIndex() == 0) ? item->flags() & ~Qt::ItemIsEnabled : item->flags() | Qt::ItemIsEnabled);
+
 	if (m_HoldChange)
 		return;
 	ui.buttonBox->button(QDialogButtonBox::Apply)->setEnabled(true);
