@@ -156,10 +156,10 @@ CIntroPage::CIntroPage(QWidget *parent)
     : QWizardPage(parent)
 {
     setTitle(tr("Introduction"));
-    if (theGUI->m_DarkTheme)
-        setPixmap(QWizard::WatermarkPixmap, QPixmap(":/SideLogoDM.png"));
-    else
-        setPixmap(QWizard::WatermarkPixmap, QPixmap(":/SideLogo.png"));
+    QPixmap Logo = QPixmap(theGUI->m_DarkTheme ? ":/SideLogoDM.png" : ":/SideLogo.png");
+    int Scaling = theConf->GetInt("Options/FontScaling", 100);
+    if(Scaling !=  100) Logo = Logo.scaled(Logo.width() * Scaling / 100, Logo.height() * Scaling / 100);
+    setPixmap(QWizard::WatermarkPixmap, Logo);
 
     QVBoxLayout *layout = new QVBoxLayout;
     QLabel* pTopLabel = new QLabel(tr("Welcome to the Setup Wizard. This wizard will help you to configure your copy of <b>Sandboxie-Plus</b>. "
@@ -638,8 +638,8 @@ CSBUpdate::CSBUpdate(QWidget *parent)
     layout->addWidget(m_pIssues, row++, 1, 1, rows-1);
     registerField("updateIssues", m_pIssues);
 
-    m_pAddons = new QCheckBox(tr("Keep the list of optional Addon components up to date"));
-    m_pAddons->setToolTip(tr("Check for latest available addons."));
+    m_pAddons = new QCheckBox(tr("Keep the list of optional Add-on components up to date"));
+    m_pAddons->setToolTip(tr("Check for latest available add-ons."));
     layout->addWidget(m_pAddons, row++, 1, 1, rows-1);
     registerField("updateAddons", m_pAddons);
 
@@ -709,10 +709,10 @@ CFinishPage::CFinishPage(QWidget *parent)
     : QWizardPage(parent)
 {
     setTitle(tr("Complete your configuration"));
-    if (theGUI->m_DarkTheme)
-        setPixmap(QWizard::WatermarkPixmap, QPixmap(":/SideLogoDM.png"));
-    else
-        setPixmap(QWizard::WatermarkPixmap, QPixmap(":/SideLogo.png"));
+    QPixmap Logo = QPixmap(theGUI->m_DarkTheme ? ":/SideLogoDM.png" : ":/SideLogo.png");
+    int Scaling = theConf->GetInt("Options/FontScaling", 100);
+    if(Scaling !=  100) Logo = Logo.scaled(Logo.width() * Scaling / 100, Logo.height() * Scaling / 100);
+    setPixmap(QWizard::WatermarkPixmap, Logo);
 
     QVBoxLayout *layout = new QVBoxLayout;
 

@@ -729,7 +729,7 @@ retry:
 //---------------------------------------------------------------------------
 
 
-std::shared_ptr<BOX_MOUNT> MountManager::MountImDisk(const std::wstring& ImageFile, const wchar_t* pPassword, ULONG64 sizeKb, ULONG session_id)
+std::shared_ptr<BOX_MOUNT> MountManager::MountImDisk(const std::wstring& ImageFile, const wchar_t* pPassword, ULONG64 sizeKb, ULONG session_id, const wchar_t* drvLetter)
 {
     bool ok = false;
 
@@ -744,8 +744,17 @@ std::shared_ptr<BOX_MOUNT> MountManager::MountImDisk(const std::wstring& ImageFi
 
     // todo allow mounting without mount
 
-    WCHAR Drive[4] = L" :";
-    Drive[0] = ImDiskFindFreeDriveLetter();
+    WCHAR Drive[4] = L"\0:";
+    if (drvLetter) {
+        WCHAR letter = towupper(drvLetter[0]);
+        if (letter >= L'A' && letter <= L'Z' && drvLetter[1] == L':') {
+            DWORD logical_drives = GetLogicalDrives();
+            if((logical_drives & (1 << (letter - L'A'))) == 0)
+                Drive[0] = letter;
+        }
+    }
+    else
+        Drive[0] = ImDiskFindFreeDriveLetter();
     if (Drive[0] == 0) {
         SbieApi_LogEx(session_id, 2234, L"");
         return NULL;
@@ -842,8 +851,10 @@ std::shared_ptr<BOX_MOUNT> MountManager::MountImDisk(const std::wstring& ImageFi
                     
                 ok = true;
 
-                if (!DefineDosDevice(DDD_REMOVE_DEFINITION | DDD_EXACT_MATCH_ON_REMOVE | DDD_RAW_TARGET_PATH, Drive, pMount->NtPath.c_str())) {
-                    SbieApi_LogEx(session_id, 2235, L"%S", Drive);
+                if (!drvLetter) {
+                    if (!DefineDosDevice(DDD_REMOVE_DEFINITION | DDD_EXACT_MATCH_ON_REMOVE | DDD_RAW_TARGET_PATH, Drive, pMount->NtPath.c_str())) {
+                        SbieApi_LogEx(session_id, 2235, L"%S", Drive);
+                    }
                 }
             }
         }
@@ -966,7 +977,7 @@ bool MountManager::AcquireBoxRoot(const WCHAR* boxname, const WCHAR* reg_root, c
 
     if (!pRoot->InUse) {
         std::shared_ptr<BOX_MOUNT>& pMount = UseRamDisk ? m_RamDisk : pRoot->Mount;
-        if (pMount && pRoot->Mount && !pRoot->Mount->NtPath.empty()) {
+        if (pMount && !pMount->NtPath.empty()) {
             std::wstring proxy = ImDiskQueryDeviceProxy(pMount->NtPath);
             if (_wcsnicmp(proxy.c_str(), L"\\BaseNamedObjects\\Global\\" IMBOX_PROXY, 25 + 11) != 0)
                 pMount->NtPath.clear();
@@ -980,9 +991,9 @@ bool MountManager::AcquireBoxRoot(const WCHAR* boxname, const WCHAR* reg_root, c
     std::wstring TargetNtPath;
 
     SCertInfo CertInfo = { 0 };
-    if (UseFileImage && (!NT_SUCCESS(SbieApi_Call(API_QUERY_DRIVER_INFO, 3, -1, (ULONG_PTR)&CertInfo, sizeof(CertInfo))) || !CERT_IS_LEVEL(CertInfo, eCertAdvanced))) {
-        const WCHAR* strings[] = { boxname, L"UseFileImage", NULL };
-        SbieApi_LogMsgExt(session_id, 6009, strings);
+    if ((UseFileImage || UseRamDisk) && (!NT_SUCCESS(SbieApi_Call(API_QUERY_DRIVER_INFO, 3, -1, (ULONG_PTR)&CertInfo, sizeof(CertInfo))) || !CERT_IS_LEVEL(CertInfo, (UseFileImage ? eCertAdvanced : eCertStandard)))) {
+        const WCHAR* strings[] = { boxname, UseFileImage ? L"UseFileImage" : L"UseRamDisk" , NULL };
+        SbieApi_LogMsgExt(session_id, UseFileImage ? 6009 : 6008, strings);
         errlvl = 0x66;
     } else
 
@@ -997,8 +1008,11 @@ bool MountManager::AcquireBoxRoot(const WCHAR* boxname, const WCHAR* reg_root, c
                 ULONG sizeKb = SbieApi_QueryConfNumber(NULL, L"RamDiskSizeKb", 0);
 				if (sizeKb < 100*1024) // we want at lesat 100MB
 					SbieApi_LogEx(session_id, 2238, L"");
-				else
-                    m_RamDisk = MountImDisk(L"", NULL, sizeKb, session_id);
+                else {
+                    WCHAR drvLetter[32] = { 0 };
+                    SbieApi_QueryConf(NULL, L"RamDiskLetter", 0, drvLetter, ARRAYSIZE(drvLetter));
+                    m_RamDisk = MountImDisk(L"", NULL, sizeKb, session_id, *drvLetter ? drvLetter : NULL);
+                }
             }
             pRoot->Mount = m_RamDisk;
         }
@@ -1019,22 +1033,22 @@ bool MountManager::AcquireBoxRoot(const WCHAR* boxname, const WCHAR* reg_root, c
             
         if (!pRoot->Mount || pRoot->Mount->NtPath.empty())
             errlvl = 0x11;
-        else {
-            TargetNtPath = pRoot->Mount->NtPath + L"\\";
-            if (UseRamDisk) // ram disk is shared so individualize the folder names
-                TargetNtPath += boxname;
-            else
-                TargetNtPath += SBIEDISK_LABEL;
+        else
             pRoot->Path = file_root;
-        }
         //    pRoot->Mount->RefCount++;
     }
 
-    if (!TargetNtPath.empty()) {
+    if (errlvl == 0 && !pRoot->InUse) {
 
         //
         // Append box name and try to create
         //
+
+        TargetNtPath = pRoot->Mount->NtPath + L"\\";
+        if (UseRamDisk) // ram disk is shared so individualize the folder names
+            TargetNtPath += boxname;
+        else
+            TargetNtPath += SBIEDISK_LABEL;
 
         HANDLE handle = OpenOrCreateNtFolder(TargetNtPath.c_str());
         if (!handle)
@@ -1085,7 +1099,7 @@ void MountManager::LockBoxRoot(const WCHAR* reg_root, ULONG session_id)
     auto I = m_RootMap.find(reg_root);
     if (I != m_RootMap.end()) {
 //        SbieApi_LogEx(session_id, 2201, L"LockBoxRoot %S", reg_root);
-        I->second->InUse = false;
+        I->second->InUse = true;
     }
     
     LeaveCriticalSection(&m_CritSec);

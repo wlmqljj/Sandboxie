@@ -95,8 +95,10 @@
 
 struct _FILE_DRIVE;
 struct _FILE_LINK;
+struct _FILE_GUID;
 typedef struct _FILE_LINK FILE_LINK;
 typedef struct _FILE_DRIVE FILE_DRIVE;
+typedef struct _FILE_GUID FILE_GUID;
 
 
 
@@ -4029,11 +4031,16 @@ _FX NTSTATUS File_GetFileType(
 
     *FileType = 0;
 
+    P_NtQueryFullAttributesFile pNtQueryFullAttributesFile = __sys_NtQueryFullAttributesFile;
+    // special case for File_InitRecoverFolders as its called bfore we hook those functions
+    if (!pNtQueryFullAttributesFile)
+        pNtQueryFullAttributesFile = NtQueryFullAttributesFile;
+
     if (IsWritePath) {
         status = File_QueryFullAttributesDirectoryFile(
                             ObjectAttributes->ObjectName->Buffer, &info);
     } else {
-        status = __sys_NtQueryFullAttributesFile(ObjectAttributes, &info);
+        status = pNtQueryFullAttributesFile(ObjectAttributes, &info);
     }
 
     if (! NT_SUCCESS(status)) {

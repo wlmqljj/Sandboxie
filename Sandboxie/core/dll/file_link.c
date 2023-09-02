@@ -50,6 +50,15 @@ struct _FILE_LINK {
 
 };
 
+struct _FILE_GUID {
+    
+    LIST_ELEM list_elem;
+    WCHAR guid[38 + 1];
+    ULONG len;          // in characters, excluding NULL
+    WCHAR path[0];
+
+};
+
 
 //---------------------------------------------------------------------------
 // Functions
@@ -99,6 +108,7 @@ static FILE_DRIVE **File_Drives = NULL;
 
 static LIST *File_PermLinks = NULL;
 static LIST *File_TempLinks = NULL;
+static LIST *File_GuidLinks = NULL;
 
 
 //---------------------------------------------------------------------------
@@ -247,6 +257,60 @@ _FX FILE_DRIVE *File_GetDriveForLetter(WCHAR drive_letter)
     return drive;
 }
 
+
+//---------------------------------------------------------------------------
+// File_GetLinkForGuid
+//---------------------------------------------------------------------------
+
+
+_FX FILE_GUID *File_GetLinkForGuid(const WCHAR* guid_str)
+{
+    FILE_GUID *guid;
+
+    EnterCriticalSection(File_DrivesAndLinks_CritSec);
+
+    guid = List_Head(File_GuidLinks);
+    while (guid) {
+        if (_wcsnicmp(guid->guid, guid_str, 38) == 0)
+            break;
+        guid = List_Next(guid);
+    }
+
+    if(!guid)
+        LeaveCriticalSection(File_DrivesAndLinks_CritSec);
+
+    return guid;
+}
+
+
+//---------------------------------------------------------------------------
+// File_TranslateGuidToNtPath
+//---------------------------------------------------------------------------
+
+_FX WCHAR* File_TranslateGuidToNtPath(const WCHAR* input_str)
+{
+    ULONG len;
+    WCHAR* NtPath;
+
+    if (_wcsnicmp(input_str, L"\\??\\Volume{", 11) != 0)
+        return NULL;
+
+    FILE_GUID* guid = File_GetLinkForGuid(&input_str[10]);
+    if (guid) {
+
+        input_str += 48;
+        len = wcslen(input_str) + 1;
+        NtPath = Dll_Alloc((guid->len + len) * sizeof(WCHAR));
+        wmemcpy(NtPath, guid->path, guid->len);
+        wmemcpy(NtPath + guid->len, input_str, len);
+
+        LeaveCriticalSection(File_DrivesAndLinks_CritSec);
+
+        return NtPath;
+    }
+    
+    return NULL;
+}
 
 //---------------------------------------------------------------------------
 // File_AddLink
@@ -824,6 +888,7 @@ _FX FILE_LINK *File_AddTempLink(WCHAR *path)
     WCHAR *newpath;
     BOOLEAN stop;
     BOOLEAN bPermLinkPath = FALSE;
+    WCHAR* CopyPath = NULL;
 
     //
     // try to open the path
@@ -832,19 +897,20 @@ _FX FILE_LINK *File_AddTempLink(WCHAR *path)
     P_NtCreateFile pNtCreateFile = __sys_NtCreateFile;
     P_NtClose pNtClose = __sys_NtClose;
     P_NtFsControlFile pNtFsControlFile = __sys_NtFsControlFile;
-	if (! pNtCreateFile)
-		pNtCreateFile = NtCreateFile;
-	if (! pNtClose)
-		pNtClose = NtClose;
-	if (! pNtFsControlFile)
-		pNtFsControlFile = NtFsControlFile;
+    // special case for File_InitRecoverFolders as its called bfore we hook those functions
+    if (! pNtCreateFile)
+        pNtCreateFile = NtCreateFile;
+    if (! pNtClose)
+        pNtClose = NtClose;
+    if (! pNtFsControlFile)
+        pNtFsControlFile = NtFsControlFile;
 
     stop = TRUE;
 
     InitializeObjectAttributes(
         &objattrs, &objname, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
-    BOOLEAN UserReparse = SbieApi_QueryConfBool(NULL, L"UseNewSymlinkResolver", FALSE);
+    BOOLEAN UserReparse = SbieApi_QueryConfBool(NULL, L"UseNewSymlinkResolver", TRUE);
 
     if (UserReparse) {
         
@@ -855,9 +921,6 @@ _FX FILE_LINK *File_AddTempLink(WCHAR *path)
         if (_wcsnicmp(path, Dll_BoxFilePath, Dll_BoxFilePathLen) != 0)
         {
             THREAD_DATA* TlsData = Dll_GetTlsData(NULL);
-
-            WCHAR* CopyPath = NULL;
-
 
             Dll_PushTlsNameBuffer(TlsData);
 
@@ -880,8 +943,11 @@ _FX FILE_LINK *File_AddTempLink(WCHAR *path)
                 NULL, 0);
 
             Dll_PopTlsNameBuffer(TlsData);
+
+            if (!NT_SUCCESS(status))
+                CopyPath = NULL;
         }
-        else
+        else // its already a copy path
             status = STATUS_BAD_INITIAL_PC;
 
         //
@@ -917,16 +983,23 @@ _FX FILE_LINK *File_AddTempLink(WCHAR *path)
             REPARSE_DATA_BUFFER* reparseDataBuffer = Dll_AllocTemp(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
             status = pNtFsControlFile(handle, NULL, NULL, NULL, &IoStatusBlock, FSCTL_GET_REPARSE_POINT, NULL, 0, reparseDataBuffer, MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
         
+            newpath = NULL;
+
             if (NT_SUCCESS(status)) {
 
                 WCHAR* input_str = reparseDataBuffer->MountPointReparseBuffer.PathBuffer;
-                if (_wcsnicmp(input_str, File_BQQB, 4) == 0)
+                if (_wcsnicmp(input_str, L"\\??\\Volume{", 11) == 0)
+                    input_str = File_TranslateGuidToNtPath(reparseDataBuffer->MountPointReparseBuffer.PathBuffer);
+                else if (_wcsnicmp(input_str, File_BQQB, 4) == 0)
                     input_str = File_TranslateDosToNtPath(reparseDataBuffer->MountPointReparseBuffer.PathBuffer + 4);
 
-                newpath = File_TranslateTempLinks_2(input_str, wcslen(input_str));
+                if (input_str) {
 
-                if (input_str != reparseDataBuffer->MountPointReparseBuffer.PathBuffer)
-                    Dll_Free(input_str);
+                    newpath = File_TranslateTempLinks_2(input_str, wcslen(input_str));
+
+                    if (input_str != reparseDataBuffer->MountPointReparseBuffer.PathBuffer)
+                        Dll_Free(input_str);
+                }
 
                 /*THREAD_DATA* TlsData = Dll_GetTlsData(NULL);
 
@@ -942,10 +1015,16 @@ _FX FILE_LINK *File_AddTempLink(WCHAR *path)
 
                 Dll_PopTlsNameBuffer(TlsData);*/
             }
-            else //if (status == STATUS_NOT_A_REPARSE_POINT) 
-            {
-                newpath = Dll_AllocTemp((wcslen(path) + 1) * sizeof(WCHAR));
-                wcscpy(newpath, path);
+            //else if (status == STATUS_NOT_A_REPARSE_POINT) 
+
+            if (!newpath) {
+
+                if (CopyPath) {
+                    newpath = Dll_AllocTemp((wcslen(path) + 1) * sizeof(WCHAR));
+                    wcscpy(newpath, path);
+                } else
+                    UserReparse = FALSE;
+
                 status = STATUS_SUCCESS;
             }
 
