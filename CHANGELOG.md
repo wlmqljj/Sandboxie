@@ -5,22 +5,23 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 
 
-## [1.11.2 / 5.66.2] - 2023-08-
+## [1.11.2 / 5.66.2] - 2023-09-09
 
 ### Added
 - added update warning when updating with an expired personal certificate
-- added an option to terminate the UI by clicking close button [#3253](https://github.com/sandboxie-plus/Sandboxie/issues/3253)
-- added an option to restore Sandboxie that is minimized to the System Tray with a single click [#3251](https://github.com/sandboxie-plus/Sandboxie/issues/3251)
+- added an option to terminate the UI by clicking the close button [#3253](https://github.com/sandboxie-plus/Sandboxie/issues/3253)
+- added an option to restore a Sandboxie window which has been minimized to the System Tray with a single click [#3251](https://github.com/sandboxie-plus/Sandboxie/issues/3251)
 - added an option to minimize Sandboxie to the System Tray by clicking minimize button [3252](https://github.com/sandboxie-plus/Sandboxie/issues/3252)
 - added an independent desktop integration setting [#3246](https://github.com/sandboxie-plus/Sandboxie/issues/3246)
 
 ### Changed
 - moved tray option to an own tab
-- repalced some graphics with better compressed once (thanks idealths)
+- replaced some graphics with better compressed ones (thanks idealths)
 
 ### Fixed
 - fixed subscription certificate recognition issue
-- fixed Side logo cut-off in the About window [#3249](https://github.com/sandboxie-plus/Sandboxie/issues/3249)
+- fixed logo cut-off in the About window [#3249](https://github.com/sandboxie-plus/Sandboxie/issues/3249)
+- fixed issue with file recovery when using ramdisk
 
 
 ## [1.11.1 / 5.66.1] - 2023-08-31
@@ -29,7 +30,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - added 'RamDiskLetter=R:\' option allowing to mount the ramdisk root to a drive letter
 
 ### Changed
-- changed the new option layout to now be the default for non-vintage views (can be changed back in the settings)
+- changed the new option layout to be the default for non-vintage views (can be changed back in the settings)
 
 ### Fixed
 - fixed issue when re-creating a rambox junction
@@ -46,7 +47,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 - added ImDisk driver, allowing to create boxes residing in a ramdisk
-- added Encrypted Sandbox support, with this feature you can create confidential boxes not leaking data to the host pc
+- added Encrypted Sandbox support; this creates confidential boxes that do not leak data to the host PC
   - using the ImDisk driver and a new ImBox component featuring the cryptographic implementation from [DiskCryptor](https://diskcryptor.org/) the sandbox root folder is stored in an encrypted container file
   - using the SbieDrv to prevent processes not belonging to the sandbox from accessing an encrypted sandbox's root folder
   - with the 'ConfidentialBox=y' option the host process read access to sandboxed processes is blocked
@@ -91,7 +92,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - added support for URL shortcut files in Run Menu [#3151](https://github.com/sandboxie-plus/Sandboxie/issues/3151)
 - added workaround for NtQueryObject locking up under exotic circumstances; to enable, use 'UseDriverObjLookup=y'
-- Addons Manager: added tooltip to version column with maintainer information [#3167](https://github.com/sandboxie-plus/Sandboxie/issues/3167)
+- Add-Ons Manager: added tooltip to version column with maintainer information [#3167](https://github.com/sandboxie-plus/Sandboxie/issues/3167)
 - added mechanism to open websites for add-ons [#3166](https://github.com/sandboxie-plus/Sandboxie/issues/3166)
 
 ### Changed
@@ -111,7 +112,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - changed format of the add-on data [#3135](https://github.com/sandboxie-plus/Sandboxie/issues/3135)
-  - all users coming from versions 1.10.0 and 1.10.1 will need to reinstall the components in the Addon Manager
+  - all users coming from versions 1.10.0 and 1.10.1 will need to reinstall the components in the Add-On Manager
 - "OpenClipboard=n" now also denies write to clipboard [#1367](https://github.com/sandboxie-plus/Sandboxie/issues/1367)
 
 ### Fixed
@@ -125,7 +126,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Removed
 - removed hardcoded support for LogApiDll
-  - use the Addon Manager and DLL injection settings
+  - use the Add-On Manager and DLL injection settings
 
 
 
@@ -134,7 +135,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - added UI option to select a custom text editor to open Sandboxie.ini [#3116](https://github.com/sandboxie-plus/Sandboxie/issues/3116)
 - added separate protection against box removal and content deletion [#3104](https://github.com/sandboxie-plus/Sandboxie/issues/3104)
-- added "auto scroll" in Sbie messages, resource monitor, API call log context menu [#393](https://github.com/sandboxie-plus/Sandboxie/issues/393)
+- added "auto scroll" feature in the Trace Log tab [#393](https://github.com/sandboxie-plus/Sandboxie/issues/393)
 
 ### Changed
 - reworked handling of NT object handles
@@ -170,7 +171,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - added box scripting engine to make SandMan more flexible
 - added scriptable troubleshooting wizard [#1875](https://github.com/sandboxie-plus/Sandboxie/issues/1875)
-- added Addon Manager which helps to install additional and third-party components, available add-ons:
+- added Add-On Manager which helps to install additional and third-party components, available add-ons:
   - [ImDisk Toolkit](https://sourceforge.net/projects/imdisk-toolkit/) - used to create RAM Disks and other virtual drives
   - [V4 Script Debugger](https://github.com/DavidXanatos/NeoScriptTools) - used to debug troubleshooting scripts
   - [Microsoft Debug Help Library](https://learn.microsoft.com/en-us/windows/win32/debug/debug-help-library) - used for the stack trace feature introduced in 1.9.6
