@@ -11,6 +11,8 @@
 
 void COptionsWindow::CreateAdvanced()
 {
+	connect(ui.chkNoPanic, SIGNAL(clicked(bool)), this, SLOT(OnAdvancedChanged()));
+
 	connect(ui.chkPreferExternalManifest, SIGNAL(clicked(bool)), this, SLOT(OnAdvancedChanged()));
 	connect(ui.chkElevateCreateProcessFix, SIGNAL(clicked(bool)), this, SLOT(OnAdvancedChanged()));
 	connect(ui.chkNoWindowRename, SIGNAL(clicked(bool)), this, SLOT(OnNoWindowRename()));
@@ -98,7 +100,8 @@ void COptionsWindow::CreateAdvanced()
 	connect(ui.btnHostProcessDeny, SIGNAL(clicked(bool)), this, SLOT(OnHostProcessDeny()));
 	connect(ui.btnDelHostProcess, SIGNAL(clicked(bool)), this, SLOT(OnDelHostProcess()));
 	connect(ui.chkShowHostProcTmpl, SIGNAL(clicked(bool)), this, SLOT(OnShowHostProcTmpl()));
-	connect(ui.chkConfidential, SIGNAL(clicked(bool)), this, SLOT(OnAdvancedChanged())); // todo norify premium feaure
+	connect(ui.chkConfidential, SIGNAL(clicked(bool)), this, SLOT(OnConfidentialChanged()));
+	connect(ui.chkLessConfidential, SIGNAL(clicked(bool)), this, SLOT(OnLessConfidentialChanged()));
 	connect(ui.chkNotifyProtect, SIGNAL(clicked(bool)), this, SLOT(OnAdvancedChanged()));
 
 	connect(ui.treeInjectDll, SIGNAL(itemChanged(QTreeWidgetItem *, int)), this, SLOT(OnToggleInjectDll(QTreeWidgetItem *, int)));
@@ -115,6 +118,8 @@ void COptionsWindow::CreateAdvanced()
 
 void COptionsWindow::LoadAdvanced()
 {
+	ui.chkNoPanic->setChecked(m_pBox->GetBool("ExcludeFromTerminateAll", false));
+
 	ui.chkPreferExternalManifest->setChecked(m_pBox->GetBool("PreferExternalManifest", false));
 	ui.chkElevateCreateProcessFix->setChecked(m_pBox->GetBool("ApplyElevateCreateProcessFix", false));
 
@@ -248,6 +253,8 @@ void COptionsWindow::LoadAdvanced()
 	ShowHostProcTmpl();
 
 	ui.chkConfidential->setChecked(m_pBox->GetBool("ConfidentialBox", false));
+	ui.chkLessConfidential->setEnabled(ui.chkConfidential->isChecked());
+	ui.chkLessConfidential->setChecked(m_BoxTemplates.contains("LessConfidentialBox"));
 	ui.chkNotifyProtect->setChecked(m_pBox->GetBool("NotifyBoxProtected", false));
 
 
@@ -309,6 +316,8 @@ void COptionsWindow::ShowTriggersTmpl(bool bUpdate)
 
 void COptionsWindow::SaveAdvanced()
 {
+	WriteAdvancedCheck(ui.chkNoPanic, "ExcludeFromTerminateAll", "y", "");
+
 	WriteAdvancedCheck(ui.chkPreferExternalManifest, "PreferExternalManifest", "y", "");
 	WriteAdvancedCheck(ui.chkElevateCreateProcessFix, "ApplyElevateCreateProcessFix", "y", "");
 
@@ -511,6 +520,17 @@ void COptionsWindow::OnSysSvcChanged()
 	ui.chkElevateRpcss->setDisabled(ui.chkNoSecurityIsolation->isChecked() && (!ui.chkRestrictServices->isChecked() || ui.chkMsiExemptions->isChecked()));
 	m_AdvancedChanged = true;
 	OnOptChanged();
+}
+
+void COptionsWindow::OnConfidentialChanged()
+{
+	ui.chkLessConfidential->setEnabled(ui.chkConfidential->isChecked());
+	OnAdvancedChanged();
+}
+
+void COptionsWindow::OnLessConfidentialChanged()
+{
+	SetTemplate("LessConfidentialBox", ui.chkLessConfidential->isChecked());
 }
 
 void COptionsWindow::OnAdvancedChanged()

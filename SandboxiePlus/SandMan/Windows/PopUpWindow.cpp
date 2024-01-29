@@ -137,8 +137,22 @@ void CPopUpWindow::timerEvent(QTimerEvent* pEvent)
 	if (pEvent->timerId() != m_uTimerID)
 		return;
 
-	if (m_iTopMost > -5 && (--m_iTopMost == 0)) {
+	if (m_iTopMost > -5 && (--m_iTopMost == 0)) 
+	{
 		SetWindowPos((HWND)this->winId(), HWND_NOTOPMOST , 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+		
+		QWidget *topMostWindow = nullptr;
+		for (QWidget *widget : QApplication::topLevelWidgets()) {
+			if (widget->isVisible() && widget->isActiveWindow()) {
+				topMostWindow = widget;
+				break;
+			}
+		}
+
+		if(topMostWindow && (topMostWindow->inherits("CCheckableMessageBox") || topMostWindow->inherits("QMessageBox"))){
+			SetWindowPos((HWND)topMostWindow->winId(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+			SetWindowPos((HWND)topMostWindow->winId(), HWND_NOTOPMOST , 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+		}
 	}
 }
 
@@ -159,7 +173,7 @@ void CPopUpWindow::AddLogMessage(quint32 MsgCode, const QStringList& MsgData, qu
 			BoxName = pProcess->GetBoxName();
 		}
 		else
-			ProcessName = tr("PID %1").arg(ProcessId);
+			ProcessName = QString("PID %1").arg(ProcessId);
 	}
 
 	QString Message = theGUI->FormatSbieMessage(MsgCode, MsgData, ProcessName);

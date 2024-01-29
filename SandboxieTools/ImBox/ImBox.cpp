@@ -83,7 +83,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         uSize = _wtoi64(size.c_str());
 
     //
-    // perpare disk IO
+    // prepare disk IO
     //
 
     CAbstractIO* pIO = NULL;
@@ -146,7 +146,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         pImDisk->SetMountSection(hMapping, pSection);
 
     //
-    // defien shutdown behavioure
+    // define shutdown behaviour
     // 
 
     SetProcessShutdownParameters(0x100, 0);

@@ -92,7 +92,6 @@ BOOL auto_select_default_box = FALSE;
 WCHAR *StartMenuSectionName = NULL;
 BOOL run_silent = FALSE;
 BOOL keep_alive = FALSE;
-BOOL dont_start_sbie_ctrl = FALSE;
 BOOL hide_window = FALSE;
 BOOL wait_for_process = FALSE;
 BOOLEAN layout_rtl = FALSE;
@@ -577,16 +576,6 @@ BOOL Parse_Command_Line(void)
             env_value_x[env_value_len] = L'\0';
 
             SetEnvironmentVariable(env_name_x, env_value_x);
-
-        //
-        // Command line switch /nosbiectrl
-        //
-
-        } else if (_wcsnicmp(cmd, L"nosbiectrl", 10) == 0) {
-
-            cmd += 10;
-
-            dont_start_sbie_ctrl = TRUE;
 
         //
         // Command line switch /reload
@@ -1120,7 +1109,7 @@ int Program_Start(void)
     }
 
     //
-    // copy input command line, minus leading and tailing spaces
+    // copy input command line, minus leading and trailing spaces
     //
 
     while (ChildCmdLine && *ChildCmdLine == L' ')
@@ -1680,7 +1669,7 @@ ULONG RestartInSandbox(void)
     // build command line.  note that we pass the current directory as an
     // environment variable which will be queried by Program_Start.  this
     // is because SbieSvc ProcessServer (used by SbieDll_RunSandboxed)
-    // does not necssarily share our dos device map, and will not be able
+    // does not necessarily share our dos device map, and will not be able
     // to change to a drive letter that isn't in its dos device map
     //
 

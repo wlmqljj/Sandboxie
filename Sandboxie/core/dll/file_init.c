@@ -176,6 +176,39 @@ _FX BOOLEAN File_Init(void)
         }
     }
 
+    
+    Dll_BoxFileDosPath = Dll_Alloc((Dll_BoxFilePathLen + 1) * sizeof(WCHAR));
+    wcscpy((WCHAR *)Dll_BoxFileDosPath, Dll_BoxFilePath);
+    if (!SbieDll_TranslateNtToDosPath((WCHAR *)Dll_BoxFileDosPath) /*|| _wcsnicmp(Dll_BoxFileDosPath, L"\\\\.\\", 4) == 0*/)
+    {
+        Dll_Free((WCHAR *)Dll_BoxFileDosPath);
+        Dll_BoxFileDosPath = NULL;
+
+        //
+        // the root is redirected with a reparse point and the target device does not have a drvie letter
+        // implement workaround, see SbieDll_TranslateNtToDosPath
+        //
+
+        ULONG BoxFileRawPathLen;
+        if (NT_SUCCESS(SbieApi_QueryProcessInfoStr(0, 'root', NULL, &BoxFileRawPathLen))) 
+        {
+            Dll_BoxFileRawPath = Dll_AllocTemp(BoxFileRawPathLen);
+            if (NT_SUCCESS(SbieApi_QueryProcessInfoStr(0, 'root', (WCHAR*)Dll_BoxFileRawPath, &BoxFileRawPathLen))) 
+            {
+                Dll_BoxFileRawPathLen = wcslen(Dll_BoxFileRawPath);
+
+                Dll_BoxFileDosPath = Dll_Alloc(BoxFileRawPathLen);
+                wcscpy((WCHAR*)Dll_BoxFileDosPath, Dll_BoxFileRawPath);
+                if (!SbieDll_TranslateNtToDosPath((WCHAR*)Dll_BoxFileDosPath)) {
+                    Dll_Free((WCHAR *)Dll_BoxFileDosPath);
+                    Dll_BoxFileDosPath = NULL;
+                }
+            }
+        }
+    }
+    if(Dll_BoxFileDosPath)
+        Dll_BoxFileDosPathLen = wcslen(Dll_BoxFileDosPath);
+
 	File_InitSnapshots();
 
     File_InitRecoverFolders();
@@ -825,7 +858,7 @@ _FX void File_InitLinks(THREAD_DATA *TlsData)
         save_char = DeviceName[DeviceNameLen];
         DeviceName[DeviceNameLen] = L'\0';
 
-        if (Output2->MultiSzLength) {
+        if (Output2->MultiSzLength && *Output2->MultiSz) {
 
             WCHAR *DosPath = Output2->MultiSz;
             ULONG DosPathLen = wcslen(DosPath);
@@ -857,10 +890,10 @@ _FX void File_InitLinks(THREAD_DATA *TlsData)
                 //
 
                 WCHAR *FirstDosPath = DosPath;
-                File_AddLink(TRUE, DeviceName, FirstDosPath);
+                File_AddLink(TRUE, FirstDosPath, DeviceName);
                 DosPath += DosPathLen + 1;
                 while (*DosPath) {
-                    File_AddLink(TRUE, DosPath, FirstDosPath);
+                    File_AddLink(TRUE, DosPath, DeviceName);
                     DosPath += wcslen(DosPath) + 1;
                 }
             }

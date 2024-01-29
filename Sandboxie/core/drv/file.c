@@ -533,6 +533,11 @@ _FX void File_AdjustBoxFilePath(PROCESS *proc, HANDLE handle)
 
                 path_len = (path_len + 1) * sizeof(WCHAR);
 
+                if (!box->file_raw_path) {
+                    InterlockedExchangePointer(&box->file_raw_path, box->file_path);
+                    InterlockedExchange(&box->file_raw_path_len, box->file_path_len);
+                }
+
                 InterlockedExchange(&box->file_path_len, 0);
                 InterlockedExchangePointer(&box->file_path, path);
                 InterlockedExchange(&box->file_path_len, path_len);
@@ -1021,7 +1026,8 @@ _FX BOOLEAN File_InitProcess(PROCESS *proc)
     // make sure the image path does not match a ClosedFilePath setting
     //
 
-    if (ok && proc->image_path && (! proc->image_sbie)) {
+    if (ok && proc->image_path && (! proc->image_sbie) 
+        && _wcsnicmp(proc->image_path, proc->box->file_path, (proc->box->file_path_len / sizeof(WCHAR)) - 1) != 0) {
 
 #ifdef USE_MATCH_PATH_EX
         ULONG mp_flags = Process_MatchPathEx(proc, proc->image_path, wcslen(proc->image_path), L'f', 
@@ -1251,7 +1257,7 @@ _FX NTSTATUS File_Generic_MyParseProc(
             }
         }
 
-    } else if (Box_IsBoxedPath(proc->box, file, &Name->Name))
+    } else if (Box_IsBoxedPath(proc->box, file, &Name->Name) || (proc->box->file_raw_path && Box_IsBoxedPath(proc->box, file_raw, &Name->Name)))
         IsBoxedPath = TRUE;
 
     //

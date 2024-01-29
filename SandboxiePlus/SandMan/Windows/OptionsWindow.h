@@ -89,12 +89,14 @@ private slots:
 	void OnDelForce();
 	void OnShowForceTmpl()			{ LoadForcedTmpl(true); }
 	void OnForcedChanged();
+	void OnForcedChanged(QTreeWidgetItem *pItem, int);
 
 	void OnBreakoutProg();
 	void OnBreakoutBrowse();
 	void OnBreakoutDir();
 	void OnDelBreakout();
 	void OnShowBreakoutTmpl()		{ LoadBreakoutTmpl(true); }
+	void OnBreakoutChanged(QTreeWidgetItem *pItem, int);
 
 	void OnAddLingering();
 	void OnDelStopProg();
@@ -195,6 +197,8 @@ private slots:
 	void OnDelProcess();
 	void OnShowHiddenProcTmpl()		{ ShowHiddenProcTmpl(true); }
 
+	void OnConfidentialChanged();
+	void OnLessConfidentialChanged();
 	void OnHostProcessAllow();
 	void OnHostProcessDeny();
 	void OnDelHostProcess();
@@ -351,7 +355,7 @@ protected:
 	void CloseCopyEdit(bool bSave = true);
 	void CloseCopyEdit(QTreeWidgetItem* pItem, bool bSave = true);
 
-	void SetProgramItem(QString Program, QTreeWidgetItem* pItem, int Column, const QString& Sufix = QString(), bool bList = true);
+	void SetProgramItem(QString Program, QTreeWidgetItem* pItem, int Column, const QString& Suffix = QString(), bool bList = true);
 
 	QString SelectProgram(bool bOrGroup = true);
 	void AddProgramToGroup(const QString& Program, const QString& Group);
@@ -390,6 +394,7 @@ protected:
 	void LoadBreakoutTmpl(bool bUpdate = false);
 	void AddBreakoutEntry(const QString& Name, int type, bool disabled = false, const QString& Template = QString());
 	void SaveForced();
+	bool CheckForcedItem(const QString& Value, int type);
 
 
 	void LoadStop();

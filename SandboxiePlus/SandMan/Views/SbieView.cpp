@@ -16,6 +16,7 @@
 #include "../Windows/BoxImageWindow.h"
 #include "../MiscHelpers/Archive/Archive.h"
 #include "../Windows/SettingsWindow.h"
+#include "../Windows/CompressDialog.h"
 
 #include "qt_windows.h"
 #include "qwindowdefs_win.h"
@@ -700,7 +701,7 @@ bool CSbieView::UpdateMenu()
 		{
 			m_CurProcesses.append(pProcess);
 			iProcessCount++;
-			if (pProcess->IsSuspended())
+			if (pProcess->TestSuspended())
 				iSuspendedCount++;
 		}
 		else
@@ -1367,7 +1368,7 @@ void CSbieView::OnSandBoxAction(QAction* Action, const QList<CSandBoxPtr>& SandB
 					if (I->first == "FileRootPath" && !I->second.toUpper().contains("%SANDBOX%"))
 						continue; // skip the FileRootPath if it does not contain a %SANDBOX% 
 
-					Status = theAPI->SbieIniSet(Name, I->first, I->second, CSbieAPI::eIniInsert, false);
+					Status = theAPI->SbieIniSet(Name, I->first, I->second, CSbieAPI::eIniAppend, false);
 					if (Status.IsError())
 						break;
 				}
@@ -1384,19 +1385,25 @@ void CSbieView::OnSandBoxAction(QAction* Action, const QList<CSandBoxPtr>& SandB
 		CSandBoxPtr pBox = SandBoxes.first();
 		auto pBoxEx = pBox.objectCast<CSandBoxPlus>();
 
+		CCompressDialog optWnd(this);
+		if (pBoxEx->UseImageFile())
+			optWnd.SetMustEncrypt();
+		if (!theGUI->SafeExec(&optWnd) == 1)
+			return;
+
+		QString Password;
+		if (optWnd.UseEncryption()) {
+			CBoxImageWindow pwWnd(CBoxImageWindow::eExport, this);
+			if (!theGUI->SafeExec(&pwWnd) == 1)
+				return;
+			Password = pwWnd.GetPassword();
+		}
+
 		QString Path = QFileDialog::getSaveFileName(this, tr("Select file name"), SandBoxes.first()->GetName() + ".7z", tr("7-zip Archive (*.7z)"));	
 		if (Path.isEmpty())
 			return;
 
-		QString Password;
-		if (pBoxEx->UseImageFile()) {
-			CBoxImageWindow window(CBoxImageWindow::eExport, this);
-			if (!theGUI->SafeExec(&window) == 1)
-				return;
-			Password = window.GetPassword();
-		}
-
-		SB_PROGRESS Status = pBoxEx->ExportBox(Path, Password);
+		SB_PROGRESS Status = pBoxEx->ExportBox(Path, Password, optWnd.GetLevel(), optWnd.MakeSolid());
 		if (Status.GetStatus() == OP_ASYNC)
 			theGUI->AddAsyncOp(Status.GetValue(), false, tr("Exporting: %1").arg(Path));
 		else
@@ -1419,6 +1426,8 @@ void CSbieView::OnSandBoxAction(QAction* Action, const QList<CSandBoxPtr>& SandB
 				theAPI->GetGlobalSettings()->SetText("DefaultBox", Value.replace(" ", "_"));
 		}
 		Results.append(Status);
+
+		SaveBoxGrouping();
 	}
 	else if (Action == m_pMenuMount)
 	{
@@ -1645,6 +1654,7 @@ void CSbieView::OnProcessAction(QAction* Action, const QList<CBoxedProcessPtr>& 
 			QString BoxName = pProcess->GetBoxName();
 			QString LinkName = pProcess->GetProcessName();
 			QString LinkPath = pProcess->GetFileName();
+			QString WorkingDir = pProcess->GetWorkingDir();
 
 			QString Path = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).replace("/", "\\");
 			//Path = QFileDialog::getExistingDirectory(this, tr("Select Directory to create Shortcut in"), Path).replace("/", "\\");
@@ -1660,13 +1670,19 @@ void CSbieView::OnProcessAction(QAction* Action, const QList<CBoxedProcessPtr>& 
 				return;
 
 			QString StartExe = theAPI->GetSbiePath() + "\\SandMan.exe";
-			CSbieUtils::CreateShortcut(StartExe, Path, LinkName, BoxName, LinkPath, LinkPath);
+			CSbieUtils::CreateShortcut(StartExe, Path, LinkName, BoxName, LinkPath, LinkPath, 0, WorkingDir);
 		}
 		else if (Action == m_pMenuPinToRun)
 		{
 			CSandBoxPlus* pBoxPlus = pProcess.objectCast<CSbieProcess>()->GetBox();
 			if (m_pMenuPinToRun->isChecked())
-				pBoxPlus->InsertText("RunCommand", pProcess->GetProcessName() + "|\"" + pBoxPlus->MakeBoxCommand(pProcess->GetFileName()) + "\"");
+			{
+				QVariantMap Entry;
+				Entry["Name"] = pProcess->GetProcessName();
+				Entry["WorkingDir"] = pProcess->GetWorkingDir();
+				Entry["Command"] = pBoxPlus->MakeBoxCommand(pProcess->GetFileName());
+				pBoxPlus->InsertText("RunCommand", MakeRunEntry(Entry));
+			}
 			else if(!m_pMenuPinToRun->data().toString().isEmpty())
 				pBoxPlus->DelValue("RunCommand", m_pMenuPinToRun->data().toString());
 		}
@@ -1692,9 +1708,9 @@ void CSbieView::OnProcessAction(QAction* Action, const QList<CBoxedProcessPtr>& 
 		else if (Action == m_pMenuMarkLeader)
 			pProcess.objectCast<CSbieProcess>()->SetLeaderProgram(m_pMenuMarkLeader->isChecked());
 		else if (Action == m_pMenuSuspend)
-			Results.append(pProcess->SetSuspend(true));
+			Results.append(pProcess->SetSuspended(true));
 		else if (Action == m_pMenuResume)
-			Results.append(pProcess->SetSuspend(false));
+			Results.append(pProcess->SetSuspended(false));
 	}
 
 	theGUI->CheckResults(Results, this);

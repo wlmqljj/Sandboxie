@@ -811,7 +811,7 @@ extern "C" {
 	NTSTATUS NTAPI RtlSetThreadErrorMode(IN ULONG NewMode, OUT PULONG OldMode);
 }
 
-ULONG CSbieAPI__GetVolumeSN(wchar_t* path)
+quint32 CSbieAPI::GetVolumeSN(const wchar_t* path, std::wstring* pLabel)
 {
     ULONG sn = 0;
     HANDLE handle;
@@ -849,8 +849,10 @@ ULONG CSbieAPI__GetVolumeSN(wchar_t* path)
             FILE_FS_VOLUME_INFORMATION volumeInfo;
             BYTE volumeInfoBuff[64];
         } u;
-        if (NT_SUCCESS(NtQueryVolumeInformationFile(handle, &iosb, &u.volumeInfo, sizeof(u), FileFsVolumeInformation)))
-            sn = u.volumeInfo.VolumeSerialNumber;
+		if (NT_SUCCESS(NtQueryVolumeInformationFile(handle, &iosb, &u.volumeInfo, sizeof(u), FileFsVolumeInformation))) {
+			sn = u.volumeInfo.VolumeSerialNumber;
+			if (pLabel) *pLabel = std::wstring(u.volumeInfo.VolumeLabel, u.volumeInfo.VolumeLabelLength/sizeof(wchar_t));
+		}
 
         NtClose(handle);
     }
@@ -925,7 +927,7 @@ void CSbieAPI::UpdateDriveLetters()
 			}
 			else {
 				Drive.Type = SDrive::EVolume;
-				if (ULONG sn = CSbieAPI__GetVolumeSN(lpTargetPath))
+				if (quint32 sn = GetVolumeSN(lpTargetPath))
 					Drive.Aux = QString("%1-%2").arg((ushort)HIWORD(sn), 4, 16, QChar('0')).arg((ushort)LOWORD(sn), 4, 16, QChar('0')).toUpper();
 			}
 			Key.append("\\");
@@ -1445,7 +1447,7 @@ SB_STATUS CSbieAPI::UpdateProcesses(int iKeep, bool bAllSessions)
 			pProcess->InitProcessInfo();
 		}
 
-		pProcess->InitProcessInfoEx();
+		pProcess->UpdateProcessInfo();
 	}
 
 	foreach(const CBoxedProcessPtr& pProcess, OldProcessList) 
@@ -1539,11 +1541,11 @@ SB_STATUS CSbieAPI::UpdateBoxPaths(CSandBox* pSandBox)
 	if (!Status)
 		return Status;
 
-	QString FilePath = Nt2DosPath(QString::fromWCharArray(FileRoot.c_str(), wcslen(FileRoot.c_str())));
-	QString RegPath = QString::fromWCharArray(KeyRoot.c_str(), wcslen(KeyRoot.c_str()));
-	QString IpcPath = QString::fromWCharArray(IpcRoot.c_str(), wcslen(IpcRoot.c_str()));
+	QString FilePath = QString::fromWCharArray(FileRoot.c_str());
+	QString RegPath = QString::fromWCharArray(KeyRoot.c_str());
+	QString IpcPath = QString::fromWCharArray(IpcRoot.c_str());
 
-	pSandBox->SetBoxPaths(FilePath, RegPath, IpcPath);
+	pSandBox->SetBoxPaths(Nt2DosPath(FilePath), RegPath, IpcPath);
 	return SB_OK;
 }
 
@@ -1579,6 +1581,40 @@ SB_STATUS CSbieAPI::UpdateProcessInfo(const CBoxedProcessPtr& pProcess)
 	pProcess->m_SessionId = session_id;
 	pProcess->m_StartTime = QDateTime::fromMSecsSinceEpoch(FILETIME2ms(create_time));
 	// sid todo
+
+	return SB_OK;
+}
+
+SB_STATUS CSbieAPI::GetProcessInfo(quint32 ProcessId, quint32* pParentId, quint32* pInfo, bool* pSuspended, QString* pImagePath, QString* pCommandLine, QString* pWorkingDir)
+{
+	PROCESS_GET_INFO_REQ req;
+	req.h.length = sizeof(PROCESS_GET_INFO_REQ);
+	req.h.msgid = MSGID_PROCESS_GET_INFO;
+	req.dwProcessId = ProcessId;
+	req.dwInfoClasses = 0;
+
+	if(pParentId || pInfo)
+		req.dwInfoClasses |= SBIE_PROCESS_BASIC_INFO;
+	if(pSuspended)
+		req.dwInfoClasses |= SBIE_PROCESS_EXEC_INFO;
+	if(pImagePath || pCommandLine || pWorkingDir)
+		req.dwInfoClasses |= SBIE_PROCESS_PATHS_INFO;
+
+	SScoped<PROCESS_INFO_RPL> rpl;
+	SB_STATUS Status = CallServer(&req.h, &rpl);
+	if (!Status || !rpl)
+		return Status;
+	
+	if (!NT_SUCCESS(rpl->h.status))
+		return SB_ERR(rpl->h.status);
+
+	if (pParentId)		*pParentId	= rpl->dwParentId;
+	if (pInfo)			*pInfo		= rpl->dwInfo;
+	if (pSuspended)		*pSuspended = rpl->bSuspended;
+
+	if (pImagePath && rpl->app_ofs && rpl->app_len > 0)		*pImagePath   = QString::fromWCharArray((WCHAR*)((ULONG_PTR)rpl.Value() + rpl->app_ofs), rpl->app_len);
+	if (pCommandLine && rpl->cmd_ofs && rpl->cmd_len > 0)	*pCommandLine = QString::fromWCharArray((WCHAR*)((ULONG_PTR)rpl.Value() + rpl->cmd_ofs), rpl->cmd_len);
+	if (pWorkingDir && rpl->dir_ofs && rpl->dir_len > 0)	*pWorkingDir  = QString::fromWCharArray((WCHAR*)((ULONG_PTR)rpl.Value() + rpl->dir_ofs), rpl->dir_len);
 
 	return SB_OK;
 }
@@ -1634,14 +1670,19 @@ SB_STATUS CSbieAPI::TerminateAll(const QString& BoxName)
 	return Status;
 }
 
-SB_STATUS CSbieAPI::TerminateAll()
+SB_STATUS CSbieAPI::TerminateAll(bool bNoExceptions)
 {
-	SB_STATUS Status = SB_OK;
+#ifdef _DEBUG
+	qDebug() << "TerminateAll" << bNoExceptions;
+#endif
+	bool bFailed = false;
 	foreach(const CSandBoxPtr& pBox, m_SandBoxes) {
+		if (!bNoExceptions && pBox->GetBool("ExcludeFromTerminateAll", false))
+			continue;
 		if (!pBox->TerminateAll())
-			Status = SB_ERR(SB_FailedKillAll);
+			bFailed = true;
 	}
-	return Status;
+	return bFailed ? SB_ERR(SB_FailedKillAll) : SB_OK;
 }
 
 SB_STATUS CSbieAPI::Terminate(quint32 ProcessId)
@@ -1650,6 +1691,42 @@ SB_STATUS CSbieAPI::Terminate(quint32 ProcessId)
 	req.h.length = sizeof(PROCESS_KILL_ONE_REQ);
 	req.h.msgid = MSGID_PROCESS_KILL_ONE;
 	req.pid = ProcessId;
+
+	SScoped<MSG_HEADER> rpl;
+	SB_STATUS Status = CallServer(&req.h, &rpl);
+	if (!Status || !rpl)
+		return Status;
+	if (rpl->status != 0)
+		Status = SB_ERR(rpl->status);
+	return Status;
+}
+
+SB_STATUS CSbieAPI::SetSuspendedAll(const QString& BoxName, bool bSuspended)
+{
+	PROCESS_SUSPEND_RESUME_ALL_REQ req;
+	req.h.length = sizeof(PROCESS_SUSPEND_RESUME_ALL_REQ);
+	req.h.msgid = MSGID_PROCESS_SUSPEND_RESUME_ALL;
+	req.session_id = -1;
+	BoxName.toWCharArray(req.boxname); // fix-me: potential overflow
+	req.boxname[BoxName.size()] = L'\0';
+	req.suspend = bSuspended ? TRUE : FALSE;
+
+	SScoped<MSG_HEADER> rpl;
+	SB_STATUS Status = CallServer(&req.h, &rpl);
+	if (!Status || !rpl)
+		return Status;
+	if(rpl->status != 0) 
+		Status = SB_ERR(rpl->status);
+	return Status;
+}
+
+SB_STATUS CSbieAPI::SetSuspended(quint32 ProcessId, bool bSuspended)
+{
+	PROCESS_SUSPEND_RESUME_ONE_REQ req;
+	req.h.length = sizeof(PROCESS_SUSPEND_RESUME_ONE_REQ);
+	req.h.msgid = MSGID_PROCESS_SUSPEND_RESUME_ONE;
+	req.pid = ProcessId;
+	req.suspend = bSuspended ? TRUE : FALSE;
 
 	SScoped<MSG_HEADER> rpl;
 	SB_STATUS Status = CallServer(&req.h, &rpl);
@@ -2141,7 +2218,7 @@ SB_STATUS CSbieAPI::SetSecureParam(const QString& Name, const void* data, size_t
 	return SB_OK;
 }
 
-SB_STATUS CSbieAPI::GetSecureParam(const QString& Name, void* data, size_t size)
+SB_STATUS CSbieAPI::GetSecureParam(const QString& Name, void* data, size_t size, quint32* size_out, bool bVerify)
 {
 	__declspec(align(8)) ULONG64 parms[API_NUM_ARGS];
 	API_SECURE_PARAM_ARGS *args = (API_SECURE_PARAM_ARGS*)parms;
@@ -2153,6 +2230,8 @@ SB_STATUS CSbieAPI::GetSecureParam(const QString& Name, void* data, size_t size)
 	args->param_name.val = (WCHAR*)name.c_str();
 	args->param_data.val = (void*)data;
 	args->param_size.val = size;
+	args->param_size_out.val = (ULONG*)size_out;
+	args->param_verify.val = bVerify;
 
 	NTSTATUS status = m->IoControl(parms);
 	if (!NT_SUCCESS(status))

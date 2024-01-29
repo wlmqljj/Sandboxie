@@ -759,7 +759,7 @@ _FX NTSTATUS Ipc_GetName(
         //    //
         //    // Since in this mode we don't call Ipc_CreateObjects we don't have a boxed namespace
         //    // and are using existing namespaces only with a name suffix
-        //    // hence we can't use Global without system provileges, so we strip it
+        //    // hence we can't use Global without system privileges, so we strip it
         //    //
         //
         //    if (_wcsnicmp(objname_buf, L"Global\\", 7) == 0) {
@@ -4074,9 +4074,6 @@ OpenTruePath:
 
     status = __sys_NtOpenDirectoryObject(DirectoryHandle, DesiredAccess, &objattrs);
 
-    if (PATH_NOT_OPEN(mp_flags) && (status == STATUS_ACCESS_DENIED))
-        status = STATUS_OBJECT_NAME_NOT_FOUND;
-
     //
     // finish
     //
@@ -4294,7 +4291,7 @@ _FX NTSTATUS Ipc_NtQueryDirectoryObject(
 
         Ipc_MergeDirectoryObject(merge, TruePath, FALSE);
 
-        ULONG len = wcslen(CopyPath); // fix root copy path, remove tailing '\\'
+        ULONG len = wcslen(CopyPath); // fix root copy path, remove trailing '\\'
         if (CopyPath[len - 1] == L'\\') CopyPath[len - 1] = 0;
 
         Ipc_MergeDirectoryObject(merge, CopyPath, TRUE);

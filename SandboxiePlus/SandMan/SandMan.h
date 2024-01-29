@@ -95,6 +95,9 @@ public:
 
 	void				EditIni(const QString& IniPath, bool bPlus = false);
 
+	void				UpdateDrives();
+	void				UpdateForceUSB();
+
 	QIcon				GetBoxIcon(int boxType, bool inUse = false);
 	QRgb				GetBoxColor(int boxType) { return m_BoxColors[boxType]; }
 	QIcon				GetColorIcon(QColor boxColor, bool inUse = false/*, bool bOut = false*/);
@@ -102,7 +105,9 @@ public:
 	QIcon				IconAddOverlay(const QIcon& Icon, const QString& Name, int Size = 24);
 	QString				GetBoxDescription(int boxType);
 	
-	bool				CheckCertificate(QWidget* pWidget, bool bAdvanced = false);
+	bool				CheckCertificate(QWidget* pWidget, int iType = 0);
+
+	bool				IsAlwaysOnTop() const;
 
 	void				UpdateTheme();
 	void				UpdateTitleTheme(const HWND& hwnd);
@@ -113,6 +118,8 @@ public:
 	void				SaveMessageLog(QIODevice* pFile);
 
 signals:
+	void				DrivesChanged();
+
 	void				CertUpdated();
 
 	void				Closed();
@@ -454,6 +461,8 @@ private:
 	bool				m_bIconBusy;
 	bool				m_bIconSun;
 	int					m_iDeletingContent;
+
+	bool				m_bOnTop;
 
 	bool				m_bExit;
 

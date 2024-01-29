@@ -117,7 +117,9 @@ public:
 		if (pBox) {
 			
 			QString Value = pBox->property("value").toString();
+			bool prev = m_pTree->blockSignals(true);
 			pItem->setText(index.column(), pBox->currentText());
+			m_pTree->blockSignals(prev);
 			//QString Text = pBox->currentText();
 			//QVariant Data = pBox->currentData();
 			pItem->setData(index.column(), Qt::UserRole, Value);
@@ -125,7 +127,9 @@ public:
 
 		QLineEdit* pEdit = qobject_cast<QLineEdit*>(editor);
 		if (pEdit) {
+			bool prev = m_pTree->blockSignals(true);
 			pItem->setText(index.column(), pEdit->text());
+			m_pTree->blockSignals(prev);
 			QString Value = pEdit->text();
 			if (m_Group) Value = "<" + Value + ">";
 			pItem->setData(index.column(), Qt::UserRole, Value);
@@ -176,8 +180,7 @@ COptionsWindow::COptionsWindow(const QSharedPointer<CSbieIni>& pBox, const QStri
 	//flags &= ~Qt::WindowCloseButtonHint;
 	setWindowFlags(flags);
 
-	bool bAlwaysOnTop = theConf->GetBool("Options/AlwaysOnTop", false);
-	this->setWindowFlag(Qt::WindowStaysOnTopHint, bAlwaysOnTop);
+	this->setWindowFlag(Qt::WindowStaysOnTopHint, theGUI->IsAlwaysOnTop());
 
 	ui.setupUi(this);
 	this->setWindowTitle(tr("Sandboxie Plus - '%1' Options").arg(QString(Name).replace("_", " ")));
@@ -451,7 +454,7 @@ COptionsWindow::COptionsWindow(const QSharedPointer<CSbieIni>& pBox, const QStri
 	//ui.treeForced->setEditTriggers(QAbstractItemView::DoubleClicked);
 	ui.treeForced->setItemDelegateForColumn(0, new NoEditDelegate(this));
 	ui.treeForced->setItemDelegateForColumn(1, new ProgramsDelegate(this, ui.treeForced, -1, this));
-	connect(ui.treeForced, SIGNAL(itemChanged(QTreeWidgetItem *, int)), this, SLOT(OnForcedChanged()));
+	connect(ui.treeForced, SIGNAL(itemChanged(QTreeWidgetItem *, int)), this, SLOT(OnForcedChanged(QTreeWidgetItem *, int)));
 	connect(ui.chkDisableForced, SIGNAL(clicked(bool)), this, SLOT(OnForcedChanged()));
 
 	connect(ui.btnBreakoutProg, SIGNAL(clicked(bool)), this, SLOT(OnBreakoutProg()));
@@ -465,7 +468,7 @@ COptionsWindow::COptionsWindow(const QSharedPointer<CSbieIni>& pBox, const QStri
 	//ui.treeBreakout->setEditTriggers(QAbstractItemView::DoubleClicked);
 	ui.treeBreakout->setItemDelegateForColumn(0, new NoEditDelegate(this));
 	ui.treeBreakout->setItemDelegateForColumn(1, new ProgramsDelegate(this, ui.treeBreakout, -1, this));
-	connect(ui.treeBreakout, SIGNAL(itemChanged(QTreeWidgetItem *, int)), this, SLOT(OnForcedChanged(QTreeWidgetItem *, int)));
+	connect(ui.treeBreakout, SIGNAL(itemChanged(QTreeWidgetItem *, int)), this, SLOT(OnBreakoutChanged(QTreeWidgetItem *, int)));
 	//
 
 	// Stop
@@ -1064,7 +1067,7 @@ void COptionsWindow::showTab(const QString& Name)
 	SafeShow(this);
 }
 
-void COptionsWindow::SetProgramItem(QString Program, QTreeWidgetItem* pItem, int Column, const QString& Sufix, bool bList)
+void COptionsWindow::SetProgramItem(QString Program, QTreeWidgetItem* pItem, int Column, const QString& Suffix, bool bList)
 {
 	pItem->setData(Column, Qt::UserRole, Program);
 	if (Program.left(1) == "<")
@@ -1073,7 +1076,7 @@ void COptionsWindow::SetProgramItem(QString Program, QTreeWidgetItem* pItem, int
 		Program = tr("All Programs");
 	else if(bList)
 		m_Programs.insert(Program);
-	pItem->setText(Column, Program + Sufix);
+	pItem->setText(Column, Program + Suffix);
 }
 
 QString COptionsWindow::SelectProgram(bool bOrGroup)

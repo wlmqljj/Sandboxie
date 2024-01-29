@@ -11,6 +11,7 @@
 #include "../OnlineUpdater.h"
 #include "../MiscHelpers/Archive/ArchiveFS.h"
 #include <QJsonDocument>
+#include "../Helpers/StorageInfo.h"
 #include "../Wizards/TemplateWizard.h"
 #include "../AddonManager.h"
 #include <qfontdialog.h>
@@ -102,8 +103,7 @@ CSettingsWindow::CSettingsWindow(QWidget* parent)
 	//flags &= ~Qt::WindowCloseButtonHint;
 	setWindowFlags(flags);
 
-	bool bAlwaysOnTop = theConf->GetBool("Options/AlwaysOnTop", false);
-	this->setWindowFlag(Qt::WindowStaysOnTopHint, bAlwaysOnTop);
+	this->setWindowFlag(Qt::WindowStaysOnTopHint, theGUI->IsAlwaysOnTop());
 
 	ui.setupUi(this);
 	this->setWindowTitle(tr("Sandboxie Plus - Global Settings"));
@@ -155,7 +155,7 @@ CSettingsWindow::CSettingsWindow(QWidget* parent)
 
 	ui.tabsControl->setCurrentIndex(0);
 	ui.tabsControl->setTabIcon(0, CSandMan::GetIcon("Alarm"));
-	//ui.tabsControl->setTabIcon(1, CSandMan::GetIcon("USB"));
+	ui.tabsControl->setTabIcon(1, CSandMan::GetIcon("USB"));
 
 	ui.tabsTemplates->setCurrentIndex(0);
 	ui.tabsTemplates->setTabIcon(0, CSandMan::GetIcon("Program"));
@@ -294,6 +294,10 @@ CSettingsWindow::CSettingsWindow(QWidget* parent)
 	connect(ui.chkMonitorSize, SIGNAL(stateChanged(int)), this, SLOT(OnOptChanged()));
 	connect(ui.chkPanic, SIGNAL(stateChanged(int)), this, SLOT(OnOptChanged()));
 	connect(ui.keyPanic, SIGNAL(keySequenceChanged(const QKeySequence &)), this, SLOT(OnOptChanged()));
+	connect(ui.chkTop, SIGNAL(stateChanged(int)), this, SLOT(OnOptChanged()));
+	connect(ui.keyTop, SIGNAL(keySequenceChanged(const QKeySequence &)), this, SLOT(OnOptChanged()));
+	connect(ui.chkPauseForce, SIGNAL(stateChanged(int)), this, SLOT(OnOptChanged()));
+	connect(ui.keyPauseForce, SIGNAL(keySequenceChanged(const QKeySequence &)), this, SLOT(OnOptChanged()));
 	connect(ui.chkAsyncBoxOps, SIGNAL(stateChanged(int)), this, SLOT(OnOptChanged()));
 
 	connect(ui.chkSilentMode, SIGNAL(stateChanged(int)), this, SLOT(OnOptChanged()));
@@ -438,6 +442,13 @@ CSettingsWindow::CSettingsWindow(QWidget* parent)
 	m_WarnProgsChanged = false;
 	//
 
+	// USB
+	connect(ui.chkSandboxUsb, SIGNAL(stateChanged(int)), this, SLOT(OnVolumeChanged()));
+	connect(ui.cmbUsbSandbox, SIGNAL(currentIndexChanged(int)), this, SLOT(OnVolumeChanged()));
+	connect(ui.treeVolumes, SIGNAL(itemChanged(QTreeWidgetItem *, int)), this, SLOT(OnVolumeChanged()));
+	m_VolumeChanged = false;
+	// 
+
 	// Templates
 	connect(ui.btnAddCompat, SIGNAL(clicked(bool)), this, SLOT(OnAddCompat()));
 	connect(ui.btnDelCompat, SIGNAL(clicked(bool)), this, SLOT(OnDelCompat()));
@@ -545,6 +556,7 @@ CSettingsWindow::CSettingsWindow(QWidget* parent)
 		//COptionsWindow__AddCertIcon(ui.chkUpdateTemplates);
 		COptionsWindow__AddCertIcon(ui.chkUpdateIssues);
 		COptionsWindow__AddCertIcon(ui.chkRamDisk);
+		COptionsWindow__AddCertIcon(ui.chkSandboxUsb);
 	}
 
 	this->installEventFilter(this); // prevent enter from closing the dialog
@@ -901,6 +913,12 @@ void CSettingsWindow::LoadSettings()
 	ui.chkPanic->setChecked(theConf->GetBool("Options/EnablePanicKey", false));
 	ui.keyPanic->setKeySequence(QKeySequence(theConf->GetString("Options/PanicKeySequence", "Shift+Pause")));
 
+	ui.chkTop->setChecked(theConf->GetBool("Options/EnableTopMostKey", false));
+	ui.keyTop->setKeySequence(QKeySequence(theConf->GetString("Options/TopMostKeySequence", "Alt+Pause")));
+
+	ui.chkPauseForce->setChecked(theConf->GetBool("Options/EnablePauseForceKey", false));
+	ui.keyPauseForce->setKeySequence(QKeySequence(theConf->GetString("Options/PauseForceKeySequence", "Ctrl+Alt+F")));
+
 	ui.chkMonitorSize->setChecked(theConf->GetBool("Options/WatchBoxSize", false));
 
 	ui.chkWatchConfig->setChecked(theConf->GetBool("Options/WatchIni", true));
@@ -994,6 +1012,20 @@ void CSettingsWindow::LoadSettings()
 			AddWarnEntry(Value, 2);
 
 		m_WarnProgsChanged = false;
+
+		ui.chkSandboxUsb->setChecked(theAPI->GetGlobalSettings()->GetBool("ForceUsbDrives", false));
+
+		ui.cmbUsbSandbox->clear();
+		foreach(const CSandBoxPtr & pBox, theAPI->GetAllBoxes())
+			ui.cmbUsbSandbox->addItem(pBox->GetName().replace("_", " "));
+		ui.cmbUsbSandbox->setCurrentText(theAPI->GetGlobalSettings()->GetText("UsbSandbox", "USB_Box").replace("_", " "));
+
+		ui.cmbUsbSandbox->setEnabled(ui.chkSandboxUsb->isChecked() && g_CertInfo.active);
+		ui.treeVolumes->setEnabled(ui.chkSandboxUsb->isChecked() && g_CertInfo.active);
+
+		UpdateDrives();
+
+		m_VolumeChanged = false;
 	}
 	
 	if(!theAPI->IsConnected() || (theAPI->GetGlobalSettings()->GetBool("EditAdminOnly", false) && !IsAdminUser()))
@@ -1019,6 +1051,9 @@ void CSettingsWindow::LoadSettings()
 		ui.treeWarnProgs->setEnabled(false);
 		ui.btnAddWarnProg->setEnabled(false);
 		ui.btnDelWarnProg->setEnabled(false);
+		ui.chkSandboxUsb->setEnabled(false);
+		ui.cmbUsbSandbox->setEnabled(false);
+		ui.treeVolumes->setEnabled(false);
 		ui.treeCompat->setEnabled(false);
 		ui.btnAddCompat->setEnabled(false);
 		ui.btnDelCompat->setEnabled(false);
@@ -1078,7 +1113,7 @@ void CSettingsWindow::OnRamDiskChange()
 {
 	if (sender() == ui.chkRamDisk) {
 		if (ui.chkRamDisk->isChecked())
-			theGUI->CheckCertificate(this);
+			theGUI->CheckCertificate(this, 2);
 	}
 
 	if (ui.chkRamDisk->isChecked() && ui.txtRamLimit->text().isEmpty())
@@ -1096,6 +1131,86 @@ void CSettingsWindow::OnRamDiskChange()
 
 	OnGeneralChanged();
 }
+
+void CSettingsWindow::OnVolumeChanged() 
+{ 
+	if (sender() == ui.chkSandboxUsb) {
+		if (ui.chkSandboxUsb->isChecked())
+			theGUI->CheckCertificate(this, 2);
+	}
+
+	ui.cmbUsbSandbox->setEnabled(ui.chkSandboxUsb->isChecked() && g_CertInfo.active);
+	ui.treeVolumes->setEnabled(ui.chkSandboxUsb->isChecked() && g_CertInfo.active);
+
+	if (!g_CertInfo.active)
+		return;
+
+	m_VolumeChanged = true; 
+	OnOptChanged();
+}
+
+void CSettingsWindow::UpdateDrives()
+{
+	if (!theAPI->IsConnected())
+		return;
+
+	ui.treeVolumes->clear();
+
+	QStringList DisabledForceVolume = theAPI->GetGlobalSettings()->GetTextList("DisabledForceVolume", false);
+
+	auto volumes = ListAllVolumes();
+	auto drives = ListAllDrives();
+	for (auto I = volumes.begin(); I != volumes.end(); ++I) {
+
+		QStringList Devices;
+		bool bOnUSB = false;
+		for (auto J = I->disks.begin(); J != I->disks.end(); ++J) {
+			SDriveInfo& info = drives[J->deviceName];
+			if (info.Enum == L"USBSTOR")
+				bOnUSB = true;
+			Devices.append(QString::fromStdWString(info.Name));
+		}
+
+		if (bOnUSB) {
+			QTreeWidgetItem* pItem = new QTreeWidgetItem();
+			ui.treeVolumes->addTopLevelItem(pItem);
+
+			QString Info = Devices.join("|");
+
+			QStringList Mounts;
+			for (auto J = I->mountPoints.begin(); J != I->mountPoints.end(); ++J)
+				Mounts.append(QString::fromStdWString(*J));
+			Info += " (" + Mounts.join(", ") + ")";
+
+			std::wstring label;
+			quint32 sn = CSbieAPI::GetVolumeSN(I->deviceName.c_str(), &label);
+			QString SN = QString("%1-%2").arg((ushort)HIWORD(sn), 4, 16, QChar('0')).arg((ushort)LOWORD(sn), 4, 16, QChar('0')).toUpper();
+
+			if (!label.empty())
+				Info += " [" + QString::fromStdWString(label) + "]";
+
+			pItem->setText(0, SN);
+			if(DisabledForceVolume.removeAll(SN))
+				pItem->setCheckState(0, Qt::Unchecked);
+			else
+				pItem->setCheckState(0, Qt::Checked);
+			pItem->setText(1, Info);
+		}
+	}
+
+	foreach(const QString & SN, DisabledForceVolume) {
+
+		QTreeWidgetItem* pItem = new QTreeWidgetItem();
+		ui.treeVolumes->addTopLevelItem(pItem);
+
+		pItem->setText(0, SN);
+		pItem->setCheckState(0, Qt::Unchecked);
+		pItem->setText(1, tr("Volume not attached"));
+	}
+}
+
+//void ScanForSeats();
+//int CountSeats();
 
 void CSettingsWindow::UpdateCert()
 {
@@ -1166,7 +1281,7 @@ void CSettingsWindow::OnGetCert()
 	SB_PROGRESS Status = theGUI->m_pUpdater->GetSupportCert(ui.txtSerial->text(), this, SLOT(OnCertData(const QByteArray&, const QVariantMap&)));
 	if (Status.GetStatus() == OP_ASYNC) {
 		theGUI->AddAsyncOp(Status.GetValue());
-		Status.GetValue()->ShowMessage(tr("Retreiving certificate..."));
+		Status.GetValue()->ShowMessage(tr("Retrieving certificate..."));
 	}
 }
 
@@ -1223,8 +1338,8 @@ QString CSettingsWindow::GetCertType()
 		CertType = tr("Patreon");
 	else if (g_CertInfo.type == eCertFamily)
 		CertType = tr("Family");
-	else if (CERT_IS_TYPE(g_CertInfo, eCertSubscription))
-		CertType = tr("Subscription");
+	else if (CERT_IS_TYPE(g_CertInfo, eCertHome))
+		CertType = tr("Home");
 	else if (CERT_IS_TYPE(g_CertInfo, eCertEvaluation))
 		CertType = tr("Evaluation");
 	else
@@ -1244,7 +1359,7 @@ QColor CSettingsWindow::GetCertColor()
 		return QColor(38, 127, 0, 255);
 	else if (g_CertInfo.type == eCertFamily)
 		return QColor(0, 38, 255, 255);
-	else if (CERT_IS_TYPE(g_CertInfo, eCertSubscription))
+	else if (CERT_IS_TYPE(g_CertInfo, eCertHome))
 		return QColor(255, 106, 0, 255);
 	else if (CERT_IS_TYPE(g_CertInfo, eCertEvaluation))
 		return Qt::gray;
@@ -1266,25 +1381,45 @@ QString CSettingsWindow::GetCertLevel()
 
 void CSettingsWindow::UpdateUpdater()
 {
+	bool bOk = (g_CertInfo.active && !g_CertInfo.expired);
 	//ui.radLive->setEnabled(false);
-	if (!ui.chkAutoUpdate->isChecked()) {
+	if (!ui.chkAutoUpdate->isChecked()) 
+	{
 		ui.cmbInterval->setEnabled(false);
 		ui.cmbUpdate->setEnabled(false);
 		ui.cmbRelease->setEnabled(false);
 		ui.lblRevision->setText(QString());
+		ui.lblRelease->setText(QString());
 	}
-	else {
+	else 
+	{
 		ui.cmbInterval->setEnabled(true);
-		if (ui.radStable->isChecked() && (!g_CertInfo.active || g_CertInfo.expired)) {
+
+		bool bAllowAuto;
+		if (ui.radStable->isChecked() && !bOk) {
 			ui.cmbUpdate->setEnabled(false);
 			ui.cmbUpdate->setCurrentIndex(ui.cmbUpdate->findData("ignore"));
-			ui.lblRevision->setText(tr("Supporter certificate required"));
-		} 
-		else {
+
+			ui.lblRevision->setText(tr("Supporter certificate required for access"));
+			bAllowAuto = false;
+		} else {
 			ui.cmbUpdate->setEnabled(true);
+
 			ui.lblRevision->setText(QString());
+			bAllowAuto = true;
 		}
+
 		ui.cmbRelease->setEnabled(true);
+		QStandardItemModel* model = qobject_cast<QStandardItemModel*>(ui.cmbRelease->model());
+		for (int i = 1; i < ui.cmbRelease->count(); i++) {
+			QStandardItem* item = model->item(i);
+			item->setFlags(bAllowAuto ? (item->flags() | Qt::ItemIsEnabled) : (item->flags() & ~Qt::ItemIsEnabled));
+		}
+
+		if(!bAllowAuto)
+			ui.lblRelease->setText(tr("Supporter certificate required for automation"));
+		else
+			ui.lblRelease->setText(QString());
 	}
 
 	OnOptChanged();
@@ -1386,7 +1521,7 @@ void CSettingsWindow::SaveSettings()
 
 	if (ui.chkShellMenu2->isChecked() != CSbieUtils::HasContextMenu2()) {
 		if (ui.chkShellMenu2->isChecked()) {
-			CSbieUtils::AddContextMenu2(QApplication::applicationDirPath().replace("/", "\\") + "\\Start.exe",
+			CSbieUtils::AddContextMenu2(QApplication::applicationDirPath().replace("/", "\\") + "\\SandMan.exe",
 				tr("Run &Un-Sandboxed"),
 				QApplication::applicationDirPath().replace("/", "\\") + "\\Start.exe");
 		} else
@@ -1408,6 +1543,12 @@ void CSettingsWindow::SaveSettings()
 
 	theConf->SetValue("Options/EnablePanicKey", ui.chkPanic->isChecked());
 	theConf->SetValue("Options/PanicKeySequence", ui.keyPanic->keySequence().toString());
+
+	theConf->SetValue("Options/EnableTopMostKey", ui.chkTop->isChecked());
+	theConf->SetValue("Options/TopMostKeySequence", ui.keyTop->keySequence().toString());
+
+	theConf->SetValue("Options/EnablePauseForceKey", ui.chkPauseForce->isChecked());
+	theConf->SetValue("Options/PauseForceKeySequence", ui.keyPauseForce->keySequence().toString());
 	
 	theConf->SetValue("Options/WatchBoxSize", ui.chkMonitorSize->isChecked());
 
@@ -1535,6 +1676,32 @@ void CSettingsWindow::SaveSettings()
 
 				WriteTextList("AlertProcess", AlertProcess);
 				WriteTextList("AlertFolder", AlertFolder);
+			}
+
+			if (m_VolumeChanged)
+			{
+				m_VolumeChanged = false;
+
+				WriteAdvancedCheck(ui.chkSandboxUsb, "ForceUsbDrives", "y", "");
+
+				QString UsbSandbox = ui.cmbUsbSandbox->currentText().replace(" ", "_");
+				SB_STATUS Status = theAPI->ValidateName(UsbSandbox);
+				if (Status.IsError())
+					QMessageBox::warning(this, "Sandboxie-Plus", theGUI->FormatError(Status));
+				else
+					WriteText("UsbSandbox", UsbSandbox);
+
+				QStringList DisabledForceVolume;
+				for (int i = 0; i < ui.treeVolumes->topLevelItemCount(); i++) {
+					QTreeWidgetItem* pItem = ui.treeVolumes->topLevelItem(i);
+					if (pItem->checkState(0) == Qt::Unchecked) {
+						DisabledForceVolume.append(pItem->text(0));
+					}
+				}
+
+				WriteTextList("DisabledForceVolume", DisabledForceVolume);
+
+				theGUI->UpdateForceUSB();
 			}
 
 			if (m_CompatChanged)
