@@ -4,48 +4,56 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 
 
-## [1.12.8 / 5.67.8] - 2024-01-xx
+
+## [1.12.9 / 5.67.9] - 2024-02-06
+
+### Fixed
+- fixed issue with symlink resolver introduced in the previous build [#3481](https://github.com/sandboxie-plus/Sandboxie/issues/3481)
+
+
+
+## [1.12.8 / 5.67.8] - 2024-01-31
 
 ### Added
 - added Japanese language on Plus UI [#3573](https://github.com/sandboxie-plus/Sandboxie/pull/3573)
 
 ### Fixed
-- fixed SBIE2321 Cannot manage device map: C0000034 / 11 [#2996](https://github.com/sandboxie-plus/Sandboxie/issues/2996)
-- fixed Cannot run explorer.exe on emulate admin sandbox [#3516](https://github.com/sandboxie-plus/Sandboxie/issues/3516)
-- fixed potential BSOD issue with WFP when trace loging is enabled [#2471](https://github.com/sandboxie-plus/Sandboxie/issues/2471)
-- fixed Run from Sandbox > Run > Program and Run from folder doesn't use the same working dir [#3555](https://github.com/sandboxie-plus/Sandboxie/issues/3555)
-- fixed UseNewSymlinkResolver causes applications to create both the link and the target folder [#3481](https://github.com/sandboxie-plus/Sandboxie/issues/3481)
-- fixed [Plus UI] Notification window is stuck when a modal dialog shows up [#3586](https://github.com/sandboxie-plus/Sandboxie/issues/3586)
+- fixed warning issue: `SBIE2321 Cannot manage device map: C0000034 / 11` [#2996](https://github.com/sandboxie-plus/Sandboxie/issues/2996)
+- fixed issue with explorer.exe that could not run on emulate admin sandbox [#3516](https://github.com/sandboxie-plus/Sandboxie/issues/3516)
+- fixed potential BSOD issue with WFP when trace logging is enabled [#2471](https://github.com/sandboxie-plus/Sandboxie/issues/2471)
+- fixed issue with running programs pinned to the Run menu that did not use the same working directory [#3555](https://github.com/sandboxie-plus/Sandboxie/issues/3555)
+- fixed UseNewSymlinkResolver causing applications to create both the link and the target folder [#3481](https://github.com/sandboxie-plus/Sandboxie/issues/3481)
+- fixed Plus UI notification window becoming stuck when a modal dialog is displayed [#3586](https://github.com/sandboxie-plus/Sandboxie/issues/3586)
 
 
 
 ## [1.12.7 / 5.67.7] - 2024-01-10
 
 ### Fixed
-- Make Duplicate Box Config keep the order of the original box configuration [#3523](https://github.com/sandboxie-plus/Sandboxie/issues/3523)
-- Save options as new defaults disappears from the Summary page [#3522](https://github.com/sandboxie-plus/Sandboxie/issues/3522)
-- fixed Windows Explorer has difficulty navigating when running in a sandbox with data protection enabled on Windows 11 [#3517](https://github.com/sandboxie-plus/Sandboxie/issues/3517) [#3516](https://github.com/sandboxie-plus/Sandboxie/issues/3516)
-  - the default template for privacy boxes now sets NormalFilePath=%ProgramData%\Microsoft\
-- fixed MessageBox with MB_DEFAULT_DESKTOP_ONLY or MB_SERVICE_NOTIFICATION can not display title and text correctly in security hardened box. [#3529](https://github.com/sandboxie-plus/Sandboxie/issues/3529)
-- fixed Can't run npm inside security hardened sandbox on Windows 11 [#3505](https://github.com/sandboxie-plus/Sandboxie/issues/3505)
-- fixed [1.12.6] Symlink and open path issue [#3537](https://github.com/sandboxie-plus/Sandboxie/issues/3537)
-  - when a volume without a asociated drive letter is encountered sbie uses \drive\{guid} instead of \drive\[letter]
-  - Note: when the volume later gets a drive letter the data under \drive\{guid} will be ignored!
-- fixed right click a sandbox shortcut - click run unsandboxed in order to open the file without sandbox [#3528](https://github.com/sandboxie-plus/Sandboxie/issues/3528)
-  - Note: for the fix to take full effect the shell integration need to be re applied
-- fixed Error Status: 0x0000065b (Function Failed During Execution) [#3504](https://github.com/sandboxie-plus/Sandboxie/issues/3504)
-- fixed Privacy Enhanced Sandboxes are fully out of function with SBIE2204 error code [#3542](https://github.com/sandboxie-plus/Sandboxie/issues/3542)
-- fixed OpenFilePath directories are not enumerated within their parent folders [#3519](https://github.com/sandboxie-plus/Sandboxie/issues/3519)
+- fixed "Duplicate Box Config" option not being able to keep the order of the original sandbox configuration [#3523](https://github.com/sandboxie-plus/Sandboxie/issues/3523)
+- fixed "Save options as new defaults" option not appearing when "Configure Advanced Options" is enabled [#3522](https://github.com/sandboxie-plus/Sandboxie/issues/3522)
+- fixed Windows Explorer issue when running in a sandbox with data protection enabled on Windows 11 [#3517](https://github.com/sandboxie-plus/Sandboxie/issues/3517)
+  - the default template for privacy boxes now sets `NormalFilePath=%ProgramData%\Microsoft\*`
+- fixed message boxes with MB_DEFAULT_DESKTOP_ONLY or MB_SERVICE_NOTIFICATION not being able to display title and text correctly in Security Hardened sandboxes [#3529](https://github.com/sandboxie-plus/Sandboxie/issues/3529)
+- fixed issue with npm failing to run inside a Security Hardened sandbox on Windows 11 [#3505](https://github.com/sandboxie-plus/Sandboxie/issues/3505)
+- fixed symlink and open path issue introduced in 1.12.6 [#3537](https://github.com/sandboxie-plus/Sandboxie/issues/3537)
+  - when a volume without an associated drive letter is encountered, Sandboxie uses `\drive\{guid}` instead of `\drive\[letter]`
+  - Note: if the volume is subsequently assigned a drive letter, the data under `\drive\{guid}` will be ignored!
+- fixed "Run Unsandboxed" command when right-clicking shortcuts created with Sandboxie Plus [#3528](https://github.com/sandboxie-plus/Sandboxie/issues/3528)
+  - Note: for the fix to take full effect, the shell integration needs to be re-applied
+- fixed `Error Status: 0x0000065b (Function failed during execution)` [#3504](https://github.com/sandboxie-plus/Sandboxie/issues/3504)
+- fixed Privacy Enhanced sandboxes failing with error code SBIE2204 [#3542](https://github.com/sandboxie-plus/Sandboxie/issues/3542)
+- fixed OpenFilePath directories not being enumerated within their parent folders [#3519](https://github.com/sandboxie-plus/Sandboxie/issues/3519)
 
 
 
 ## [1.12.6 / 5.67.6] - 2024-01-02
 
 ### Changed
-- improved behaviour of toolbar customization menu
+- improved behaviour of the toolbar customization menu
 
 ### Fixed
-- fixed issue introduced in 1.12.4 with start.exe failing to run in a confidential box [#3514](https://github.com/sandboxie-plus/Sandboxie/issues/3514)
+- fixed issue introduced in 1.12.4 with Start.exe failing to run in an encrypted box [#3514](https://github.com/sandboxie-plus/Sandboxie/issues/3514)
 - fixed "The directory name is invalid" when starting a process in an encrypted private box [#3475](https://github.com/sandboxie-plus/Sandboxie/issues/3475)
 - fixed symbolic links created inside a sandbox not working properly [#3181](https://github.com/sandboxie-plus/Sandboxie/issues/3181)
 - fixed issue with drives mounted to multiple folders or a drive letter and a folder
@@ -65,20 +73,20 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## [1.12.4 / 5.67.4] - 2023-12-18
 
 ### Added
-- added display of Date & Time in the Sbie Messages tab [#3429](https://github.com/sandboxie-plus/Sandboxie/issues/3429)
+- added the display of date and time in the Sbie Messages tab [#3429](https://github.com/sandboxie-plus/Sandboxie/issues/3429)
 
 ### Changed
-- without an active, non-expired, supporter certificate, automatic updates/downloads are no longer available for the stable channel
-  - the automatic updater will still work and notify about new stable releases, the user will be guided to visit the download page and download the latest installer manually
-- the cleanup button in SandMan UI is now enabled even when not connected to the Sandboxie core components
-- the box creation wizard now allows to create a black box based on any other box type
+- without an active supporter certificate, automatic updates are no longer available for the stable channel
+  - the automatic updater will still notify about new stable releases and the user will be guided to the download page to download the latest installer manually
+- the clean-up button in SandMan UI is now enabled even when not connected to the Sandboxie core components
+- the box creation wizard now allows to create encrypted sandboxes based on any other box type
 
 ### Fixed
 - fixed running sandboxed processes located in an ImDisk volume [#3472](https://github.com/sandboxie-plus/Sandboxie/discussions/3472)
 - fixed sample 634d066fd4f9a8b201a3ddf346e880be unable to be terminated on Windows 7 x64 [#3482](https://github.com/sandboxie-plus/Sandboxie/issues/3482)
 - fixed UseNewSymlinkResolver causing applications to create both the link and the target folder [#3481](https://github.com/sandboxie-plus/Sandboxie/issues/3481)
 - fixed issue with sandbox renaming that broke the group hierarchy [#3430](https://github.com/sandboxie-plus/Sandboxie/issues/3430)
-- fixed encrypted confidential sandbox with red box preset blocking access to its root directories [#3475](https://github.com/sandboxie-plus/Sandboxie/issues/3475)
+- fixed encrypted sandbox with red box preset blocking access to its root directories [#3475](https://github.com/sandboxie-plus/Sandboxie/issues/3475)
 - fixed SandMan crash issue introduced in 1.12.0 [#3492](https://github.com/sandboxie-plus/Sandboxie/issues/3492)
 
 
@@ -330,7 +338,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - improved robustness of snapshot merging [#3017](https://github.com/sandboxie-plus/Sandboxie/issues/3017)
 
 ### Fixed
-- fixed "Disable Security Isolation" causes a game to stop playing audio [#2893](https://github.com/sandboxie-plus/Sandboxie/issues/2893)
+- fixed "Disable Security Isolation" causing a game to stop playing audio [#2893](https://github.com/sandboxie-plus/Sandboxie/issues/2893)
 - fixed NtQueryDirectoryObject not implemented [#2734](https://github.com/sandboxie-plus/Sandboxie/issues/2734)
 - fixed issue with working directory for Run Menu entries
 - fixed improper global symlink in sandboxed namespace [#3112](https://github.com/sandboxie-plus/Sandboxie/issues/3112)
@@ -421,7 +429,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - fixed empty lines when using "Copy Panel" in Plus UI [#2995](https://github.com/sandboxie-plus/Sandboxie/issues/2995)
 - fixed Plus installer not honouring IniPath value when updating the current installed version (thanks offhub) [#2994](https://github.com/sandboxie-plus/Sandboxie/issues/2994)
 - fixed timestamp on crash dumps
-- fixed Firefox 114 crashes in security enhanced box, if start restrictions are enabled (thanks offhub) [#3019](https://github.com/sandboxie-plus/Sandboxie/issues/3019)
+- fixed Firefox 114 crashes in Security Hardened boxes, if start restrictions are enabled (thanks offhub) [#3019](https://github.com/sandboxie-plus/Sandboxie/issues/3019)
 - fixed a bug when there is no GUI proxy (thanks lmou523) [#3020](https://github.com/sandboxie-plus/Sandboxie/pull/3020)
 
 
@@ -643,7 +651,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 - fixed issue with finder search in trace log
 - fixed issue with NT namespace virtualization [#2701](https://github.com/sandboxie-plus/Sandboxie/issues/2701)
-- fixed issue with "run unsandboxed" [#2710](https://github.com/sandboxie-plus/Sandboxie/issues/2710)
+- fixed issue with "Run Unsandboxed" [#2710](https://github.com/sandboxie-plus/Sandboxie/issues/2710)
 - fixed issue with new box wizard [#2729](https://github.com/sandboxie-plus/Sandboxie/issues/2729)
 - fixed issue with breakout processes and user-restricted sandboxes [#2732](https://github.com/sandboxie-plus/Sandboxie/issues/2732)
 - fixed a couple of UI issues [#2733](https://github.com/sandboxie-plus/Sandboxie/issues/2733)
@@ -796,7 +804,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - ApiLog support is now hidden from the trace UI when the appropriate DLLs are missing
 
 ### Fixed
-- fixed issue with Microsoft Edge in a security enhanced box [#2571](https://github.com/sandboxie-plus/Sandboxie/issues/2571)
+- fixed issue with Microsoft Edge in a Security Hardened box [#2571](https://github.com/sandboxie-plus/Sandboxie/issues/2571)
 - opened OpenIpcPath=\\{BEC19D6F-D7B2-41A8-860C-8787BB964F2D} on ARM64 systems
 - fixed incompatibility with Windows 11 21H2 ARM64 [#2431](https://github.com/sandboxie-plus/Sandboxie/issues/2431)
 
@@ -1171,13 +1179,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - added hook configuration for ntoskrnl/ntdll
   - individual ntdll hooks can be disabled using "DisableWinNtHook=..."
-- added new Super Extra Security Enhanced Box Mode; add "UseSecurityMode=y" to enable
+- added a new Security Hardened Box Mode; add "UseSecurityMode=y" to enable
   - when this setting is enabled, it combines "SysCallLockDown=y" which limits the use of NT system calls with "DropAdminRights=y" and "RestrictDevices=y"
   - only calls configured in the global section as "ApproveWinNtSysCall=..."/"ApproveWin32SysCall=..." will be executed with the original token
   - all non-approved NT syscalls will be executed with the sandboxed token, this may break compatibility in certain scenarios
   - additional syscalls may need to be allowed, this has to be done in the [GlobalSettings] and the driver must be restarted
-  - Note: boxes created as Security Enhanced with prior builds will be displayed as normal in the UI from now on
-  - the Security Enhanced icons are now repurposed for the new Super Extra Security Enhanced Box Mode
+  - Note: boxes created as Security Hardened with prior builds will be displayed as normal in the UI from now on
+  - the Security Hardened icons are now repurposed for the new Super Extra Security Hardened Box Mode
   - Note: the new enhanced security features require a supporter certificate
 - added browse option to the "force process" tab
 
@@ -1734,7 +1742,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - fixed memory leak in driver (conf_user.c)
 - fixed issue with file renaming in open paths introduced in 1.0.6
 - fixed issue causing Chromium browsers not closing properly [#1496](https://github.com/sandboxie-plus/Sandboxie/issues/1496)
-- fixed issue with start.exe [#1517](https://github.com/sandboxie-plus/Sandboxie/issues/1517) [#1516](https://github.com/sandboxie-plus/Sandboxie/issues/1516)
+- fixed issue with Start.exe [#1517](https://github.com/sandboxie-plus/Sandboxie/issues/1517) [#1516](https://github.com/sandboxie-plus/Sandboxie/issues/1516)
 - fixed SandMan issue with reused process IDs
 - fixed KmdUtil sometimes not properly terminating the driver [#1493](https://github.com/sandboxie-plus/Sandboxie/issues/1493)
 
@@ -1877,7 +1885,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## [1.0.0 / 5.55.0] - 2021-11-17
 
 ### Added
-- added Privacy enhanced mode, sandboxes with "UsePrivacyMode=y" will not allow read access to locations containing user data
+- added Privacy Enhanced mode, sandboxes with "UsePrivacyMode=y" will not allow read access to locations containing user data
   - all locations except generic Windows system paths will need to be opened explicitly for read and/or write access
   - using "NormalFilePath=...", "NormalKeyPath=...", "NormalIpcPath=..." allows to open locations to be readable and sandboxed
 - added new app compartment mode of operation, it is enabled by adding "NoSecurityIsolation=y" to the box config
@@ -1897,7 +1905,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - reworked the resource access path matching mechanism to optionally apply more specific rules over less specific ones
   - for example "OpenFilePath=C:\User\Me\AppData\Firefox takes precedence over "WriteFilePath=C:\User\Me\"
-  - to enable this new behaviour, add "UseRuleSpecificity=y" to your Sandboxie.ini, this behaviour is always enabled in Privacy enhanced mode
+  - to enable this new behaviour, add "UseRuleSpecificity=y" to your Sandboxie.ini, this behaviour is always enabled in Privacy Enhanced mode
   - added "NormalFilePath=..." to restore default Sandboxie behaviour on a given path
   - added "OpenConfPath=...", which similarly to "OpenPipePath=..." is a "OpenKeyPath=..." variant which applies to executables located in the sandbox
 - removed option to copy a box during creation, instead the box context menu offers a duplication option
@@ -2156,10 +2164,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 > Read the developer's notes about the new [WFP functionality](https://github.com/sandboxie-plus/Sandboxie/releases/tag/0.9.3).
 
 ### Added
-- ability to use the "run unsandboxed" option with Sandboxie links [#614](https://github.com/sandboxie-plus/Sandboxie/issues/614)
+- ability to use the "Run Unsandboxed" option with Sandboxie links [#614](https://github.com/sandboxie-plus/Sandboxie/issues/614)
 
 ### Fixed
-- fixed "run outside sandbox" issue on Classic build [#614](https://github.com/sandboxie-plus/Sandboxie/issues/614#issuecomment-894710466)
+- fixed "Run Outside Sandbox" issue on Classic builds [#614](https://github.com/sandboxie-plus/Sandboxie/issues/614#issuecomment-894710466)
 - fixed open template does not load the edit tab [#1054](https://github.com/sandboxie-plus/Sandboxie/issues/1054#issuecomment-893001316)
 - fixed issue with "explore sandboxed" [#972](https://github.com/sandboxie-plus/Sandboxie/issues/972)
 - fixed start directory for sandboxed processes [#1071](https://github.com/sandboxie-plus/Sandboxie/issues/1071)
@@ -2796,7 +2804,7 @@ Fixed issue with Windows 7
 - fixed failed check for running processes when performing snapshot operations
 - fixed some box options checkboxes were not properly initialized
 - fixed unavailable options are not properly disabled when SandMan is not connected to the driver
-- fixed MSI installer issue, not being able to create "C:\Config.msi" folder on Windows 20H2 [#219](https://github.com/sandboxie-plus/Sandboxie/issues/219)
+- fixed MSI installer not being able to create "C:\Config.msi" folder on Windows 20H2 [#219](https://github.com/sandboxie-plus/Sandboxie/issues/219)
 - added missing localization to generic list commands
 - fixed issue with "iconcache_*" when running sandboxed Windows Explorer
 - fixed more issues with groups
@@ -2978,7 +2986,7 @@ Fixed issue with Windows 7
 
 ### Added
 - added "Terminate all processes" and "disable forced programs" commands to tray menu in SandMan UI
-- program start restrictions settings now can be switched between a white list and a black list
+- program start restrictions settings now can be switched between a whitelist and a blacklist
   - programs can be terminated and blacklisted from the context menu
 - added additional process context menu options, lingering and leader process can be now set from menu
 - added option to view template presets for any given box
