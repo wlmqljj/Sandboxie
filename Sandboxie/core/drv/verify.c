@@ -222,13 +222,13 @@ NTSTATUS KphVerifySignature(
     _In_ ULONG SignatureSize
     )
 {
+    return STATUS_SUCCESS;
     NTSTATUS status;
     BCRYPT_ALG_HANDLE signAlgHandle = NULL;
     BCRYPT_KEY_HANDLE keyHandle = NULL;
     PVOID hash = NULL;
     ULONG hashSize;
 
-    return STATUS_SUCCESS;
     // Import the trusted public key.
 
     if (!NT_SUCCESS(status = BCryptOpenAlgorithmProvider(&signAlgHandle, KPH_SIGN_ALGORITHM, NULL, 0)))
@@ -253,7 +253,7 @@ CleanupExit:
     if (signAlgHandle)
         BCryptCloseAlgorithmProvider(signAlgHandle, 0);
 
-    return STATUS_SUCCESS;
+    return status;
 }
 
 NTSTATUS KphVerifyFile(
@@ -266,7 +266,6 @@ NTSTATUS KphVerifyFile(
     PVOID hash = NULL;
     ULONG hashSize;
 
-    return STATUS_SUCCESS;
     // Hash the file.
 
     if (!NT_SUCCESS(status = KphHashFile(FileName, &hash, &hashSize)))
@@ -283,7 +282,7 @@ CleanupExit:
     if (hash)
         ExFreePoolWithTag(hash, 'vhpK');
  
-    return STATUS_SUCCESS;
+    return status;
 }
 
 NTSTATUS KphVerifyBuffer(
