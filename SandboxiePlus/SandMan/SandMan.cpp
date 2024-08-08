@@ -3091,7 +3091,7 @@ SB_STATUS CSandMan::ReloadCert(QWidget* pWidget)
 		{
 		case 0xC000000DL: /*STATUS_INVALID_PARAMETER*/
 		case 0xC0000079L: /*STATUS_INVALID_SECURITY_DESCR:*/
-		case 0xC000A000L: /*STATUS_INVALID_SIGNATURE:*/			Info = tr("The Certificate Signature is invalid!"); break;
+		case 0xC000A000L: /*STATUS_INVALID_SIGNATURE:*/			break;
 		case 0xC0000024L: /*STATUS_OBJECT_TYPE_MISMATCH:*/		Info = tr("The Certificate is not suitable for this product."); break;
 		case 0xC0000485L: /*STATUS_FIRMWARE_IMAGE_INVALID:*/	Info = tr("The Certificate is node locked."); break;
 		default:												Info = QString("0x%1").arg((quint32)Status.GetStatus(), 8, 16, QChar('0'));
